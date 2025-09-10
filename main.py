@@ -66,11 +66,19 @@ class EDAOrchestrator:
         print(f"📊 User goal: {user_goal}")
         
         try:
+            # Prepare per-run log directory
+            run_ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+            run_dir = os.path.join(self.logs_dir, f"run-{run_ts}")
+            os.makedirs(run_dir, exist_ok=True)
             # Step 1: Profile the data
             print("\n📋 Step 1: Profiling data...")
             profile = self.profiler.profile(csv_path)
             self.execution_log["profile"] = profile
             print(f"✅ Profiled {profile['rows_total']} rows, {len(profile['columns'])} columns")
+
+            # Save profile
+            with open(os.path.join(run_dir, "profile.json"), 'w') as f:
+                json.dump(profile, f, indent=2)
             
             # Step 2: Load data for execution
             print("\n📂 Step 2: Loading data...")
@@ -82,6 +90,10 @@ class EDAOrchestrator:
             eda_plan = self.planner.plan(profile, user_goal, max_items)
             self.execution_log["eda_plan"] = eda_plan.get("eda_plan", [])
             print(f"✅ Created plan with {len(self.execution_log['eda_plan'])} items")
+
+            # Save planner output
+            with open(os.path.join(run_dir, "plan.json"), 'w') as f:
+                json.dump(eda_plan, f, indent=2)
             
             # Step 4: Execute each plan item
             print("\n🔧 Step 4: Executing analysis...")
@@ -92,6 +104,10 @@ class EDAOrchestrator:
                 
                 # Generate code
                 code_output = self.coder.write_code(item, profile, self.artifacts_dir)
+                # Save code writer output
+                item_id = item.get('id', f'item_{i}')
+                with open(os.path.join(run_dir, f"code_{item_id}.json"), 'w') as f:
+                    json.dump(code_output, f, indent=2)
                 
                 # Execute code
                 exec_result = self.executor.execute(
@@ -99,15 +115,24 @@ class EDAOrchestrator:
                     df, 
                     code_output["manifest_schema"]
                 )
+                # Save executor result
+                with open(os.path.join(run_dir, f"exec_{item_id}.json"), 'w') as f:
+                    json.dump(exec_result, f, indent=2)
                 
                 # Critique and potentially fix
                 critique_result = self.critic.critique(code_output, exec_result)
+                # Save critic output
+                with open(os.path.join(run_dir, f"critic_{item_id}.json"), 'w') as f:
+                    json.dump(critique_result, f, indent=2)
                 
                 # If fix needed, try again
                 if critique_result["status"] == "fix" and critique_result.get("fix_patch"):
                     print(f"    🔧 Applying fix...")
                     fixed_code = code_output["python"] + "\n" + critique_result["fix_patch"]
                     exec_result = self.executor.execute(fixed_code, df, code_output["manifest_schema"])
+                    # Save post-fix executor result
+                    with open(os.path.join(run_dir, f"exec_{item_id}_after_fix.json"), 'w') as f:
+                        json.dump(exec_result, f, indent=2)
                 
                 # Store results
                 exec_summary = {
@@ -134,8 +159,15 @@ class EDAOrchestrator:
             
             # Step 5: Generate final report
             print("\n📝 Step 5: Generating report...")
+            # Save highlights for reporter
+            with open(os.path.join(run_dir, "highlights.json"), 'w') as f:
+                json.dump(highlights, f, indent=2)
+
             final_report = self.reporter.report(highlights, profile)
             self.execution_log["final_report"] = final_report
+            # Save reporter output
+            with open(os.path.join(run_dir, "reporter_output.json"), 'w') as f:
+                json.dump(final_report, f, indent=2)
             
             # Save report
             report_path = os.path.join(self.report_dir, "report.md")
@@ -148,6 +180,9 @@ class EDAOrchestrator:
             with open(log_path, 'w') as f:
                 json.dump(self.execution_log, f, indent=2)
             print(f"✅ Execution log saved to: {log_path}")
+            # Also save a copy into the per-run directory
+            with open(os.path.join(run_dir, "execution_log.json"), 'w') as f:
+                json.dump(self.execution_log, f, indent=2)
             
             # Summary
             print(f"\n🎉 EDA Analysis Complete!")
