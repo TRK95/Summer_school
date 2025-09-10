@@ -47,6 +47,7 @@ class PlannerAgent:
         """Build the planner prompt"""
         # Include up to 8 sample rows to give the planner concrete context
         samples_json = json.dumps((data_samples or [])[:8], indent=2)
+        plot_types = ["histogram", "boxplot", "line", "bar", "heatmap", "scatter"]
         prompt = f"""
             {{
             "role": "planner",
