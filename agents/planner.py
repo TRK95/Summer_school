@@ -52,6 +52,7 @@ class PlannerAgent:
             "role": "planner",
             "step": "plan",
             "profile": {json.dumps(profile, indent=2)},
+            "samples": {samples_json},
             "user_goal": "{user_goal}",
             "constraints": {{"max_items": {max_items}}},
             "output_contract": "Return {{\\"eda_plan\\":[{{id,goal,plots,priority,columns,notes}}]}}"
