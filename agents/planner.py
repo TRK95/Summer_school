@@ -55,16 +55,33 @@ class PlannerAgent:
             "samples": {samples_json},
             "user_goal": "{user_goal}",
             "constraints": {{"max_items": {max_items}}},
-            "output_contract": "Return {{\\"eda_plan\\":[{{id,goal,plots,priority,columns,notes}}]}}"
+            "output_contract": "Return {{\\"eda_plan\\":[{{id,goal,plots,priority,columns,notes}}]}}",
+            "available_plot_types": {json.dumps(plot_types)}
             }}
-
+            
             Based on the profile above, create a prioritized EDA plan. Focus on:
             1. Data quality issues (missing values, outliers)
             2. Distribution analysis for numeric columns
             3. Categorical analysis for non-numeric columns
             4. Relationships between variables
             5. Time series patterns if applicable
+            6. Anomaly detection and unusual patterns
+            7. Segmentation opportunities in the data
+            8. Multivariate relationships and interaction effects
+            9. Potential biases or imbalances in representation
 
+            Guidance on visualization diversity:
+            - Use a variety of plot types to avoid redundancy.
+            - Histograms/boxplots → distributions and outliers
+            - Bar charts → categorical frequencies and comparisons
+            - Scatter plots → relationships between numeric variables
+            - Line plots → time or ordered data
+            - Heatmaps → correlations or matrix-style comparisons
+            - Combine multiple plot types when appropriate for deeper insights.
+
+            Available plot types: {", ".join(plot_types)}
+
+            
             Return a JSON object with an "eda_plan" array containing plan items.
             Each item should have: id, goal, plots, priority (1=highest), columns, notes.
             """

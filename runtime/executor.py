@@ -59,10 +59,6 @@ class SandboxExecutor:
             "compile",
             "reload",
             "__import__",
-            "getattr",
-            "setattr",
-            "delattr",
-            "hasattr",
         }
 
     def execute(

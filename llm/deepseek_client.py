@@ -40,12 +40,11 @@ class DeepSeekClient:
             "messages": messages,
             "response_format": {"type": "json_object"},
             "temperature": 0.1,
-            "max_tokens": 4000,
         }
 
         try:
             response = requests.post(
-                self.base_url, headers=self.headers, json=payload, timeout=30
+                self.base_url, headers=self.headers, json=payload
             )
             response.raise_for_status()
 

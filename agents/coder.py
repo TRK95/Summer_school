@@ -53,7 +53,10 @@ class CodeWriterAgent:
                 "save_dir": "{save_dir}",
                 "rules": [
                 "No seaborn", "Label axes and titles", "Handle missing values",
-                "Use df already loaded", "Save PNG under save_dir; do not call plt.show()"
+                "Use df already loaded", "Save PNG under save_dir; do not call plt.show()",
+                "NO imports of os, sys, pathlib, subprocess, or file operations",
+                "Use string concatenation for paths, not os.path.join()",
+                "Direct file paths only - no dynamic path construction"
                 ]
             }},
             "output_contract": "Return {{\\"title\\",\\"python\\",\\"expected_outputs\\":[\\"...png\\"],\\"manifest_schema\\":{{...}}}}"
@@ -66,6 +69,9 @@ class CodeWriterAgent:
             4. Save plots to {save_dir} directory
             5. Never call plt.show()
             6. Create a manifest object describing the chart
+            7. NEVER import os, sys, pathlib, subprocess or any file system modules
+            8. Use string concatenation for file paths like '{save_dir}/filename.png'
+            9. Only use provided modules: pd, np, plt, matplotlib, stats
 
             Return JSON with title, python code, expected_outputs, and manifest_schema.
             """
