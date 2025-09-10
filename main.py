@@ -92,7 +92,12 @@ class EDAOrchestrator:
 
             # Step 3: Plan EDA
             print("\n🎯 Step 3: Planning EDA...")
-            eda_plan = self.planner.plan(profile, user_goal, max_items)
+            # Provide a small random sample of rows to the planner for better grounding
+            try:
+                sample_rows = df.sample(n=min(8, len(df)), random_state=42).to_dict(orient='records')
+            except Exception:
+                sample_rows = []
+            eda_plan = self.planner.plan(profile, user_goal, max_items, data_samples=sample_rows)
             self.execution_log["eda_plan"] = eda_plan.get("eda_plan", [])
             print(f"✅ Created plan with {len(self.execution_log['eda_plan'])} items")
 

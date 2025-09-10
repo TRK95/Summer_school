@@ -3,7 +3,7 @@ EDA Planner Agent - converts profile + user goal into prioritized EDA plan
 """
 
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from llm.deepseek_client import DeepSeekClient
 
 
@@ -43,6 +43,8 @@ class PlannerAgent:
         self, profile: Dict[str, Any], user_goal: str, max_items: int
     ) -> str:
         """Build the planner prompt"""
+        # Include up to 8 sample rows to give the planner concrete context
+        samples_json = json.dumps((data_samples or [])[:8], indent=2)
         prompt = f"""
             {{
             "role": "planner",
