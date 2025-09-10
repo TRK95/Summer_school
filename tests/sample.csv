@@ -1,0 +1,101 @@
+transaction_id,date,amount,category,customer_id,items,region,payment_method
+1,2024-01-15,125.50,Electronics,1001,3,North,Credit Card
+2,2024-01-16,89.99,Clothing,1002,1,South,Debit Card
+3,2024-01-17,45.20,Books,1003,2,East,Cash
+4,2024-01-18,234.75,Electronics,1004,1,West,Credit Card
+5,2024-01-19,67.30,Clothing,1005,4,North,Debit Card
+6,2024-01-20,156.80,Electronics,1006,2,South,Credit Card
+7,2024-01-21,23.45,Books,1007,1,East,Cash
+8,2024-01-22,189.99,Electronics,1008,1,West,Credit Card
+9,2024-01-23,78.50,Clothing,1009,3,North,Debit Card
+10,2024-01-24,345.25,Electronics,1010,2,South,Credit Card
+11,2024-01-25,56.75,Books,1011,1,East,Cash
+12,2024-01-26,198.30,Electronics,1012,1,West,Credit Card
+13,2024-01-27,134.60,Clothing,1013,2,North,Debit Card
+14,2024-01-28,267.40,Electronics,1014,3,South,Credit Card
+15,2024-01-29,89.15,Books,1015,1,East,Cash
+16,2024-01-30,312.80,Electronics,1016,2,West,Credit Card
+17,2024-01-31,45.90,Clothing,1017,1,North,Debit Card
+18,2024-02-01,178.25,Electronics,1018,1,South,Credit Card
+19,2024-02-02,67.80,Books,1019,2,East,Cash
+20,2024-02-03,223.50,Electronics,1020,2,West,Credit Card
+21,2024-02-04,98.40,Clothing,1021,3,North,Debit Card
+22,2024-02-05,156.75,Electronics,1022,1,South,Credit Card
+23,2024-02-06,34.25,Books,1023,1,East,Cash
+24,2024-02-07,289.90,Electronics,1024,2,West,Credit Card
+25,2024-02-08,112.60,Clothing,1025,2,North,Debit Card
+26,2024-02-09,445.30,Electronics,1026,3,South,Credit Card
+27,2024-02-10,78.95,Books,1027,1,East,Cash
+28,2024-02-11,167.20,Electronics,1028,1,West,Credit Card
+29,2024-02-12,89.45,Clothing,1029,4,North,Debit Card
+30,2024-02-13,234.60,Electronics,1030,2,South,Credit Card
+31,2024-02-14,56.30,Books,1031,1,East,Cash
+32,2024-02-15,198.75,Electronics,1032,1,West,Credit Card
+33,2024-02-16,123.40,Clothing,1033,2,North,Debit Card
+34,2024-02-17,356.80,Electronics,1034,3,South,Credit Card
+35,2024-02-18,45.60,Books,1035,1,East,Cash
+36,2024-02-19,267.25,Electronics,1036,2,West,Credit Card
+37,2024-02-20,134.90,Clothing,1037,3,North,Debit Card
+38,2024-02-21,189.40,Electronics,1038,1,South,Credit Card
+39,2024-02-22,67.15,Books,1039,2,East,Cash
+40,2024-02-23,312.60,Electronics,1040,2,West,Credit Card
+41,2024-02-24,98.75,Clothing,1041,1,North,Debit Card
+42,2024-02-25,178.30,Electronics,1042,1,South,Credit Card
+43,2024-02-26,34.80,Books,1043,1,East,Cash
+44,2024-02-27,289.45,Electronics,1044,3,West,Credit Card
+45,2024-02-28,112.20,Clothing,1045,2,North,Debit Card
+46,2024-02-29,445.75,Electronics,1046,2,South,Credit Card
+47,2024-03-01,78.60,Books,1047,1,East,Cash
+48,2024-03-02,167.85,Electronics,1048,1,West,Credit Card
+49,2024-03-03,89.30,Clothing,1049,3,North,Debit Card
+50,2024-03-04,234.15,Electronics,1050,2,South,Credit Card
+51,2024-03-05,56.45,Books,1051,1,East,Cash
+52,2024-03-06,198.90,Electronics,1052,1,West,Credit Card
+53,2024-03-07,123.75,Clothing,1053,2,North,Debit Card
+54,2024-03-08,356.25,Electronics,1054,3,South,Credit Card
+55,2024-03-09,45.35,Books,1055,1,East,Cash
+56,2024-03-10,267.80,Electronics,1056,2,West,Credit Card
+57,2024-03-11,134.45,Clothing,1057,4,North,Debit Card
+58,2024-03-12,189.65,Electronics,1058,1,South,Credit Card
+59,2024-03-13,67.90,Books,1059,2,East,Cash
+60,2024-03-14,312.40,Electronics,1060,2,West,Credit Card
+61,2024-03-15,98.25,Clothing,1061,1,North,Debit Card
+62,2024-03-16,178.70,Electronics,1062,1,South,Credit Card
+63,2024-03-17,34.55,Books,1063,1,East,Cash
+64,2024-03-18,289.20,Electronics,1064,3,West,Credit Card
+65,2024-03-19,112.85,Clothing,1065,2,North,Debit Card
+66,2024-03-20,445.50,Electronics,1066,2,South,Credit Card
+67,2024-03-21,78.35,Books,1067,1,East,Cash
+68,2024-03-22,167.60,Electronics,1068,1,West,Credit Card
+69,2024-03-23,89.80,Clothing,1069,3,North,Debit Card
+70,2024-03-24,234.90,Electronics,1070,2,South,Credit Card
+71,2024-03-25,56.20,Books,1071,1,East,Cash
+72,2024-03-26,198.45,Electronics,1072,1,West,Credit Card
+73,2024-03-27,123.60,Clothing,1073,2,North,Debit Card
+74,2024-03-28,356.70,Electronics,1074,3,South,Credit Card
+75,2024-03-29,45.85,Books,1075,1,East,Cash
+76,2024-03-30,267.35,Electronics,1076,2,West,Credit Card
+77,2024-03-31,134.70,Clothing,1077,4,North,Debit Card
+78,2024-04-01,189.15,Electronics,1078,1,South,Credit Card
+79,2024-04-02,67.45,Books,1079,2,East,Cash
+80,2024-04-03,312.85,Electronics,1080,2,West,Credit Card
+81,2024-04-04,98.60,Clothing,1081,1,North,Debit Card
+82,2024-04-05,178.45,Electronics,1082,1,South,Credit Card
+83,2024-04-06,34.70,Books,1083,1,East,Cash
+84,2024-04-07,289.75,Electronics,1084,3,West,Credit Card
+85,2024-04-08,112.40,Clothing,1085,2,North,Debit Card
+86,2024-04-09,445.85,Electronics,1086,2,South,Credit Card
+87,2024-04-10,78.50,Books,1087,1,East,Cash
+88,2024-04-11,167.75,Electronics,1088,1,West,Credit Card
+89,2024-04-12,89.25,Clothing,1089,3,North,Debit Card
+90,2024-04-13,234.40,Electronics,1090,2,South,Credit Card
+91,2024-04-14,56.75,Books,1091,1,East,Cash
+92,2024-04-15,198.60,Electronics,1092,1,West,Credit Card
+93,2024-04-16,123.85,Clothing,1093,2,North,Debit Card
+94,2024-04-17,356.45,Electronics,1094,3,South,Credit Card
+95,2024-04-18,45.50,Books,1095,1,East,Cash
+96,2024-04-19,267.90,Electronics,1096,2,West,Credit Card
+97,2024-04-20,134.25,Clothing,1097,4,North,Debit Card
+98,2024-04-21,189.80,Electronics,1098,1,South,Credit Card
+99,2024-04-22,67.70,Books,1099,2,East,Cash
+100,2024-04-23,312.25,Electronics,1100,2,West,Credit Card

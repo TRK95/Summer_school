@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "fix"]
+    },
+    "fix_patch": {"type": "string"},
+    "notes": {"type": "string"}
+  },
+  "required": ["status", "fix_patch", "notes"]
+}

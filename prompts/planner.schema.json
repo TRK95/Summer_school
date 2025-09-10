@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "eda_plan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "goal": {"type": "string"},
+          "plots": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["histogram", "boxplot", "line", "bar", "heatmap", "scatter"]
+            }
+          },
+          "priority": {"type": "integer", "minimum": 1},
+          "columns": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "notes": {"type": "string"}
+        },
+        "required": ["id", "goal", "plots", "priority", "columns", "notes"]
+      }
+    }
+  },
+  "required": ["eda_plan"]
+}

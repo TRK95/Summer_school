@@ -1,0 +1,68 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {"type": "string"},
+    "python": {"type": "string"},
+    "expected_outputs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "manifest_schema": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "charts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "saved_path": {"type": "string"},
+              "chart_type": {
+                "type": "string",
+                "enum": ["histogram", "box", "line", "bar", "heatmap", "scatter"]
+              },
+              "columns_used": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "n_rows_plotted": {"type": "integer"},
+              "axis": {
+                "type": "object",
+                "properties": {
+                  "x": {"type": "string"},
+                  "y": {"type": ["string", "null"]},
+                  "log_x": {"type": "boolean"},
+                  "log_y": {"type": "boolean"},
+                  "x_ticks": {"type": "integer"},
+                  "y_ticks": {"type": "integer"}
+                }
+              },
+              "encodings": {
+                "type": "object",
+                "properties": {
+                  "hue": {"type": ["string", "null"]},
+                  "facet": {"type": ["string", "null"]}
+                }
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "bins": {"type": "integer"},
+                  "clip_quantiles": {
+                    "type": "array",
+                    "items": {"type": "number"}
+                  },
+                  "rolling_window": {"type": ["integer", "null"]}
+                }
+              },
+              "notes": {"type": "string"}
+            },
+            "required": ["saved_path", "chart_type", "columns_used", "n_rows_plotted", "axis", "encodings", "params", "notes"]
+          }
+        }
+      },
+      "required": ["id", "charts"]
+    }
+  },
+  "required": ["title", "python", "expected_outputs", "manifest_schema"]
+}
