@@ -18,6 +18,7 @@ class PlannerAgent:
         profile: Dict[str, Any],
         user_goal: str = "General EDA",
         max_items: int = 8,
+        data_samples: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Create an EDA plan based on profile and user goal
@@ -26,11 +27,12 @@ class PlannerAgent:
             profile: Data profile from profiler
             user_goal: User's specific goal or "General EDA"
             max_items: Maximum number of plan items
+            data_samples: Optional list of data samples for context
 
         Returns:
             EDA plan dictionary
         """
-        user_message = self._build_planner_prompt(profile, user_goal, max_items)
+        user_message = self._build_planner_prompt(profile, user_goal, max_items, data_samples)
 
         try:
             response = self.llm_client.complete_with_system_prompt(user_message)
@@ -40,7 +42,7 @@ class PlannerAgent:
             return self._create_fallback_plan(profile, max_items)
 
     def _build_planner_prompt(
-        self, profile: Dict[str, Any], user_goal: str, max_items: int
+        self, profile: Dict[str, Any], user_goal: str, max_items: int, data_samples: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """Build the planner prompt"""
         # Include up to 8 sample rows to give the planner concrete context
