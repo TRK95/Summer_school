@@ -1,0 +1,322 @@
+# 🚀 Builder Brief — Automated EDA & Visualization by Multi-Agent Chat (DeepSeek, CSV-only)
+
+## 0) One-liner
+
+Given a CSV, a set of agents collaborate to: **profile → plan EDA → write Python → execute safely → lint/critique → report**, producing a markdown summary and a plot gallery. LLMs never read images; they reason from structured **manifests + evidence + logs**.
+
+## 1) Non-negotiable Constraints
+
+* **LLM**: DeepSeek text-only (no image input).
+* **Language/Libs**: Python 3.10+, `pandas`, `numpy`, `matplotlib` (default), optional: `plotly.express`, `scipy`.
+* **No seaborn** by default.
+* **Security**: Sandbox execution with **whitelisted imports only**, no network, no filesystem writes beyond `./artifacts` and the provided CSV. Hard time/memory limits.
+* **Deterministic where possible**: profiling, execution, linting implemented without LLM.
+* **Artifacts**: all plots saved to `./artifacts/*.png`. LLMs see **metadata and stats**, not pixels.
+* **I/O**: Input = CSV path; Output = report markdown + PNG files + JSON logs.
+
+## 2) Roles (Agents)
+
+* **Orchestrator**: sequences steps, validates JSON contracts, retries.
+* **Profiler (deterministic)**: inspects CSV, infers dtypes, missingness, basic stats → **profile JSON**.
+* **EDA Planner (LLM)**: converts profile + user goal into prioritized **EDA plan**.
+* **Code Writer (LLM)**: emits single-cell Python per plan item + declares **manifest schema** for produced charts.
+* **Executor (deterministic)**: runs code in sandbox; returns `exec_ok`, stdout/error, parsed **manifest**, computed **evidence**, and **linter flags**.
+* **Critic (LLM)**: reads text-only inputs (manifest/evidence/linter/logs) and proposes fixes or confirms.
+* **Reporter (LLM)**: writes concise markdown summary + “next questions,” referencing PNG paths only by file name.
+
+## 3) Data Flow (happy path)
+
+CSV → Profiler JSON → Planner plan → Code Writer cell → Executor run → (optional Critic fix loop) → Reporter markdown → User reads report + opens PNGs.
+
+## 4) JSON Contracts (Schemas)
+
+### 4.1 Profile (deterministic output)
+
+```json
+{
+  "rows_total": 0,
+  "rows_sampled": 0,
+  "memory_estimate_mb": 0.0,
+  "columns": [
+    {
+      "name": "col",
+      "dtype": "float64|int64|string|bool|datetime64[ns]|category",
+      "missing": 0,
+      "numeric": {
+        "min": 0.0, "max": 0.0, "mean": 0.0, "std": 0.0,
+        "quantiles": {"0.0": 0.0, "0.25": 0.0, "0.5": 0.0, "0.75": 0.0, "1.0": 0.0}
+      },
+      "top_values": {"A": 10, "B": 5}
+    }
+  ],
+  "suspected_target": null
+}
+```
+
+### 4.2 Planner → EDA Plan (LLM output)
+
+```json
+{
+  "eda_plan": [
+    {
+      "id": "q1_distribution_amount",
+      "goal": "Inspect skewness and outliers for `amount`",
+      "plots": ["histogram","boxplot"],
+      "priority": 1,
+      "columns": ["amount"],
+      "notes": "Consider log scale if skewed"
+    }
+  ]
+}
+```
+
+### 4.3 Code Writer → Code Cell + Manifest Schema (LLM output)
+
+```json
+{
+  "title": "Distribution of Amount",
+  "python": "### single cell, uses df, saves PNG(s) into ./artifacts, no plt.show()",
+  "expected_outputs": ["./artifacts/fig_q1_1.png"],
+  "manifest_schema": {
+    "id": "q1_distribution_amount",
+    "charts": [
+      {
+        "saved_path": "./artifacts/fig_q1_1.png",
+        "chart_type": "histogram|box|line|bar|heatmap|scatter",
+        "columns_used": ["amount"],
+        "n_rows_plotted": 0,
+        "axis": {
+          "x": "amount", "y": null,
+          "log_x": false, "log_y": false,
+          "x_ticks": 0, "y_ticks": 0
+        },
+        "encodings": {"hue": null, "facet": null},
+        "params": {
+          "bins": 50,
+          "clip_quantiles": [0.01, 0.99],
+          "rolling_window": null
+        },
+        "notes": "NA dropped: 0%"
+      }
+    ]
+  }
+}
+```
+
+### 4.4 Executor → Run Result (deterministic output)
+
+```json
+{
+  "exec_ok": true,
+  "stdout": "",
+  "error": "",
+  "manifest": { "...": "as declared by Code Writer" },
+  "evidence": {
+    "numeric": {
+      "amount": {
+        "count": 0, "mean": 0.0, "std": 0.0,
+        "min": 0.0, "p01": 0.0, "p25": 0.0, "p50": 0.0, "p75": 0.0, "p95": 0.0, "p99": 0.0, "max": 0.0,
+        "skew": 0.0, "kurtosis": 0.0, "n_outliers_z3": 0
+      }
+    },
+    "categorical": {
+      "category": {
+        "cardinality": 0,
+        "top_k": [{"value":"A","count":10,"share":0.1}]
+      }
+    },
+    "relationships": {
+      "corr_pearson_top": [["amount","items",0.42]]
+    },
+    "timeseries": {
+      "primary_ts_col": null,
+      "resample": "D|W|M",
+      "seasonality_hint": null
+    }
+  },
+  "linter_flags": [
+    {"level":"warn","code":"HIGH_SKEW_NO_LOG","msg":"Skew>2, consider log_x"}
+  ]
+}
+```
+
+### 4.5 Critic → Verdict/Patch (LLM output)
+
+```json
+{
+  "status": "ok|fix",
+  "fix_patch": "### minimal replacement cell if needed",
+  "notes": "Short rationale"
+}
+```
+
+### 4.6 Reporter → Final Report (LLM output)
+
+```json
+{
+  "markdown": "# EDA Summary\n- ...\n## Figures\n- Title: ./artifacts/fig_q1_1.png\n",
+  "next_questions": ["...","..."]
+}
+```
+
+## 5) Prompts (LLM System/User Messages)
+
+> **Global LLM System Prompt (shared across Planner/Code Writer/Critic/Reporter)**
+> “You are a precise tool-builder. You must return **valid JSON** that exactly matches the requested schema. Do not include any prose outside JSON. You **do not** have access to images; reason only from structured inputs. Prefer simple, robust Python (pandas + matplotlib). Figures must save under `./artifacts/` and never call `plt.show()`.”
+
+### 5.1 Planner Prompt
+
+* **Input (User message to LLM):**
+
+```
+{
+  "role": "planner",
+  "step": "plan",
+  "profile": <PROFILE_JSON>,
+  "user_goal": "<e.g., 'General EDA' or 'Focus on seasonality and anomalies'>",
+  "constraints": {"max_items": 8},
+  "output_contract": "Return {\"eda_plan\":[{id,goal,plots,priority,columns,notes}]}"
+}
+```
+
+* **Output:** schema 4.2.
+
+### 5.2 Code Writer Prompt
+
+* **Input:**
+
+```
+{
+  "role": "coder",
+  "step": "code",
+  "item": <ONE_PLAN_ITEM>,
+  "profile": <PROFILE_JSON>,
+  "constraints": {
+    "save_dir": "./artifacts",
+    "rules": [
+      "No seaborn", "Label axes and titles", "Handle missing values",
+      "Use df already loaded", "Save PNG under save_dir; do not call plt.show()"
+    ]
+  },
+  "output_contract": "Return {\"title\",\"python\",\"expected_outputs\":[...png],\"manifest_schema\":{...}}"
+}
+```
+
+* **Output:** schema 4.3.
+
+### 5.3 Critic Prompt
+
+* **Input:**
+
+```
+{
+  "role": "critic",
+  "step": "critique",
+  "code": <CODE_WRITER_OUTPUT>,
+  "exec_result": <EXECUTOR_OUTPUT>,
+  "output_contract": "Return {\"status\":\"ok|fix\",\"fix_patch\":\"<if any>\",\"notes\":\"...\"}"
+}
+```
+
+* **Output:** schema 4.5.
+
+### 5.4 Reporter Prompt
+
+* **Input:**
+
+```
+{
+  "role": "reporter",
+  "step": "report",
+  "inputs": {
+    "highlights": [
+      {
+        "title": "<from Code Writer>",
+        "artifacts": ["./artifacts/fig_...png"],
+        "manifest": <MANIFEST_FOR_THAT_ITEM>,
+        "evidence": <EVIDENCE_SNIPPET_FOR_RELATED_COLS>,
+        "notes": "<stdout or short notes>"
+      }
+    ],
+    "profile": <PROFILE_JSON>
+  },
+  "output_contract": "Return {\"markdown\":\"...\",\"next_questions\":[\"...\"]}"
+}
+```
+
+* **Output:** schema 4.6.
+
+## 6) Plot Linter (deterministic rules)
+
+Emit `linter_flags` with `{level, code, msg}` based on:
+
+* `MISSING_LABELS` – title/x/y absent in manifest.
+* `HIGH_CARDINALITY` – categorical unique > 15 → suggest top-k + “Other”.
+* `HIGH_SKEW_NO_LOG` – |skew| > 2 and no log axis in manifest.
+* `MANY_TICKS` – any axis ticks > 20 → suggest thinning/rotation/resample.
+* `HIGH_NA_DROP` – manifest `notes` indicates >20% NA dropped.
+* `EMPTY_PLOT` – `n_rows_plotted` < 50 or empty bins.
+* `HEATMAP_TOO_WIDE` – >30 numeric features → suggest subset by variance/corr rank.
+
+## 7) Sandbox Execution (requirements)
+
+* Provide `df`, `pd`, `np`, `plt` (Agg backend) in a clean namespace.
+* **Forbidden**: `os`, `sys`, `subprocess`, `socket`, `http`, `open(`, `pathlib.Path(`, `shutil`, any network I/O.
+* Resource limits: per-cell timeout (e.g., 10s), memory cap, optional sampling for heavy ops.
+* Capture `stdout`, `stderr`, exceptions; always return **exec result** in schema 4.4.
+* Parse/validate the **manifest** object that the code constructed (or synthesize if code prints it).
+
+## 8) Project Structure
+
+```
+project/
+  main.py                # Orchestrator (calls agents & runtime)
+  agents/
+    planner.py           # DeepSeek wrapper + JSON validation
+    coder.py
+    critic.py
+    reporter.py
+  runtime/
+    profiler.py          # CSV profile (deterministic)
+    executor.py          # sandbox + manifest validator + evidence extractor + linter
+    artifacts/           # saved PNGs
+  llm/
+    deepseek_client.py   # JSON-only completions (response_format: json_object)
+  prompts/
+    system.md
+    planner.schema.json
+    coder.schema.json
+    critic.schema.json
+    reporter.schema.json
+  docs/
+    architecture.md      # copy of this brief + sequence diagram
+  tests/
+    sample.csv
+    smoke_test.md
+```
+
+## 9) Acceptance Criteria (for Cursor to test against)
+
+1. Running `main` on `tests/sample.csv` produces:
+
+   * `./artifacts/*.png` images,
+   * `./logs/last_run.json` with `profile`, `eda_plan`, all per-item `exec_result`,
+   * `./report/report.md` containing a readable summary and figure references.
+2. LLMs **never** consume images; Critic/Reporter decisions must be explainable from **manifest/evidence/linter/logs**.
+3. Planner generates at least 6 items when possible; items are prioritized and reference existing columns.
+4. Code Writer outputs single-cell Python that runs in the sandbox without forbidden calls.
+5. Linter flags `HIGH_SKEW_NO_LOG` on a right-skewed numeric and Critic proposes a log-scale fix.
+6. Reporter outputs “next questions” aligned with observed evidence (e.g., seasonality hints, imbalance).
+
+## 10) Example User Stories
+
+* “Load `transactions.csv` and focus on seasonality and anomalies.”
+* “Compare average basket size across top 10 categories.”
+* “Try a log transform for `amount` and re-plot distribution.”
+* “Highlight any strong correlations and show the top pairs.”
+
+## 11) Non-Goals (for scope control)
+
+* Model training, forecasting, or causal inference.
+* Database connectivity (CSV only in MVP).
+* Interactive dashboards (optional later via plotly/HTML export).
