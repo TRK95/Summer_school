@@ -396,6 +396,36 @@ st.markdown("""
         line-height: 1.2 !important;
     }
     
+    /* Approval button specific styling - override any session item styles */
+    .stButton > button:not([data-testid]):not(.session-item *) {
+        all: revert !important;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        transition: all 0.2s ease !important;
+        height: auto !important;
+        min-height: 2.75rem !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        min-width: 120px !important;
+        width: auto !important;
+        max-width: none !important;
+        display: inline-block !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+    }
+    
+    .stButton > button:not([data-testid]):not(.session-item *):hover {
+        background: linear-gradient(135deg, #2563eb, #1e40af) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+    }
+    
     /* Step headers */
     .main h2 {
         font-size: 1.6rem !important;
@@ -404,6 +434,17 @@ st.markdown("""
         margin: 2rem 0 1rem 0 !important;
         padding-bottom: 0.5rem !important;
         border-bottom: 2px solid #e5e7eb !important;
+    }
+    
+    /* Progress section specific styling */
+    .main h2:has-text("Analysis Progress") + div {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Ensure no duplicate progress containers */
+    .stContainer:has(.stColumns) .stContainer {
+        display: contents !important;
     }
     
     .main h3 {
@@ -880,40 +921,48 @@ elif uploaded_file is not None:
             st.markdown("---")
             st.markdown("## 🔄 Analysis Progress")
             
-            progress_col1, progress_col2, progress_col3, progress_col4 = st.columns(4)
+            # Force a unique container to prevent ghost elements
+            progress_key = f"progress_{st.session_state.get('session_id', 'default')}"
+            progress_container = st.empty()
             
-            # Step 1: Profile (cache)
-            with progress_col1:
-                st.markdown("### 1️⃣ Profile")
-                if "profile" not in st.session_state:
-                    with st.spinner("Profiling data..."):
-                        profile = orchestrator.profiler.profile(st.session_state.get("tmp_csv_path", tmp_csv_path))
-                    st.session_state["profile"] = profile
-                profile = st.session_state["profile"]
-                st.success(f"✅ {profile.get('rows_total', 0):,} rows\n{len(profile.get('columns', []))} columns")
+            with progress_container.container():
+                progress_col1, progress_col2, progress_col3, progress_col4 = st.columns(4)
+                
+                # Step 1: Profile (cache)
+                with progress_col1:
+                    st.markdown("### 1️⃣ Profile")
+                    if "profile" not in st.session_state:
+                        with st.spinner("Profiling data..."):
+                            profile = orchestrator.profiler.profile(st.session_state.get("tmp_csv_path", tmp_csv_path))
+                        st.session_state["profile"] = profile
+                    profile = st.session_state["profile"]
+                    st.success(f"✅ {profile.get('rows_total', 0):,} rows\n{len(profile.get('columns', []))} columns")
 
-            # Load data silently (no UI indicator)
-            if "df" not in st.session_state:
-                st.session_state["df"] = pd.read_csv(st.session_state.get("tmp_csv_path", tmp_csv_path))
-            df = st.session_state["df"]
+                # Load data silently (no UI indicator)
+                if "df" not in st.session_state:
+                    st.session_state["df"] = pd.read_csv(st.session_state.get("tmp_csv_path", tmp_csv_path))
+                df = st.session_state["df"]
 
-            # Step 2: Plan indicator
-            with progress_col2:
-                st.markdown("### 2️⃣ Plan")
-                if "plan_versions" in st.session_state:
-                    st.success(f"✅ {len(st.session_state['plan_versions'])} versions")
-                else:
+                # Step 2: Plan indicator
+                with progress_col2:
+                    st.markdown("### 2️⃣ Plan")
+                    if "plan_versions" in st.session_state:
+                        st.success(f"✅ {len(st.session_state['plan_versions'])} versions")
+                    else:
+                        st.info("⏳ Pending")
+
+                # Step 3: Execute indicator
+                with progress_col3:
+                    st.markdown("### 3️⃣ Execute")
+                    if st.session_state.get("approved_plan_index") is not None:
+                        st.info("🔄 In Progress...")
+                    else:
+                        st.info("⏳ Pending")
+
+                # Step 4: Report indicator
+                with progress_col4:
+                    st.markdown("### 4️⃣ Report")
                     st.info("⏳ Pending")
-
-            # Step 3: Execute indicator
-            with progress_col3:
-                st.markdown("### 3️⃣ Execute")
-                st.info("⏳ Pending")
-
-            # Step 4: Report indicator
-            with progress_col4:
-                st.markdown("### 4️⃣ Report")
-                st.info("⏳ Pending")
 
             st.markdown("---")
 
@@ -936,9 +985,18 @@ elif uploaded_file is not None:
             plan_versions = st.session_state.get("plan_versions", [])
             
             # Render all versions with improved styling
-            approved_index = None
+            approved_index = st.session_state.get("approved_plan_index", None)
+            
+            # Show approved plan status if one exists
+            if approved_index is not None:
+                st.success(f"✅ Plan {approved_index + 1} has been approved and will be executed below.")
+            
             for idx, version in enumerate(plan_versions):
-                st.markdown(f"### {idx+1}. {version.get('label','Version')} Plan")
+                # Show if this plan is approved
+                if approved_index == idx:
+                    st.markdown(f"### {idx+1}. {version.get('label','Version')} Plan ✅ **APPROVED**")
+                else:
+                    st.markdown(f"### {idx+1}. {version.get('label','Version')} Plan")
                 
                 items = version.get("items", [])
                 if items:
@@ -980,56 +1038,65 @@ elif uploaded_file is not None:
                     st.info("📝 Plan is empty.")
                 
                 # Approval button with better styling - centered
-                approval_col1, approval_col2, approval_col3 = st.columns([1, 2, 1])
-                with approval_col2:
-                    if st.button(f"✅ Approve Plan {idx+1}", key=f"approve_plan_{idx}", use_container_width=True):
-                        approved_index = idx
-                        # Save approved plan to database
-                        if "session_id" in st.session_state:
-                            history_db.save_plan_version(
-                                st.session_state["session_id"],
-                                version_number=idx+1,
-                                plan_items=items,
-                                approved=True
-                            )
-                
-                st.markdown("---")
-
-            # Request changes form (below the latest rendered plan)
-            with st.expander("🔄 Request Changes (Generate New Version)", expanded=False):
-                st.markdown("Describe what you'd like to adjust in the analysis plan:")
-                feedback = st.text_area("Your feedback", 
-                                       placeholder="E.g., 'Focus more on correlation analysis', 'Add time series plots', 'Remove redundant visualizations'...",
-                                       key="feedback_text",
-                                       height=100)
-                
-                feedback_col1, feedback_col2, feedback_col3 = st.columns([1, 2, 1])
-                with feedback_col2:
-                    if st.button("🔄 Generate Updated Plan", key="request_changes", use_container_width=True):
-                        with st.spinner("🤖 Generating updated plan..."):
-                            plan_resp = orchestrator.planner.plan(
-                                st.session_state["profile"],
-                                st.session_state.get("goal", goal),
-                                st.session_state.get("max_items", max_items),
-                                data_samples=st.session_state.get("sample_rows", []),
-                                user_feedback=feedback or "Please improve the plan per my comments."
-                            )
-                            new_items = plan_resp.get("eda_plan", [])
-                            version_label = f"Updated {len(plan_versions)}"
-                            plan_versions.append({"label": version_label, "items": new_items})
-                            st.session_state["plan_versions"] = plan_versions
-                            
-                            # Save new plan version to database
+                # Only show approval buttons if no plan has been approved yet
+                if approved_index is None:
+                    approval_col1, approval_col2, approval_col3 = st.columns([1, 2, 1])
+                    with approval_col2:
+                        # Use a simple key without session ID to avoid key conflicts
+                        if st.button(f"✅ Approve Plan {idx+1}", key=f"approve_plan_{idx}", use_container_width=True):
+                            # Save approved plan to database
                             if "session_id" in st.session_state:
                                 history_db.save_plan_version(
                                     st.session_state["session_id"],
-                                    version_number=len(plan_versions),
-                                    plan_items=new_items,
-                                    user_feedback=feedback,
-                                    approved=False
+                                    version_number=idx+1,
+                                    plan_items=items,
+                                    approved=True
                                 )
-                        # Immediately rerun to render the new plan version without another click
-                        st.rerun()
+                            # Store the approved index in session state for persistence
+                            st.session_state["approved_plan_index"] = idx
+                            # Clear the button interaction by adding a completion flag
+                            st.session_state["plan_approved_flag"] = True
+                            # Rerun to update UI and remove buttons completely
+                            st.rerun()
+                
+                st.markdown("---")
+
+            # Request changes form (only show if no plan approved)
+            if approved_index is None:
+                with st.expander("🔄 Request Changes (Generate New Version)", expanded=False):
+                    st.markdown("Describe what you'd like to adjust in the analysis plan:")
+                    feedback = st.text_area("Your feedback", 
+                                           placeholder="E.g., 'Focus more on correlation analysis', 'Add time series plots', 'Remove redundant visualizations'...",
+                                           key="feedback_text",
+                                           height=100)
+                    
+                    feedback_col1, feedback_col2, feedback_col3 = st.columns([1, 2, 1])
+                    with feedback_col2:
+                        if st.button("🔄 Generate Updated Plan", key="request_changes", use_container_width=True):
+                            with st.spinner("🤖 Generating updated plan..."):
+                                plan_resp = orchestrator.planner.plan(
+                                    st.session_state["profile"],
+                                    st.session_state.get("goal", goal),
+                                    st.session_state.get("max_items", max_items),
+                                    data_samples=st.session_state.get("sample_rows", []),
+                                    user_feedback=feedback or "Please improve the plan per my comments."
+                                )
+                                new_items = plan_resp.get("eda_plan", [])
+                                version_label = f"Updated {len(plan_versions)}"
+                                plan_versions.append({"label": version_label, "items": new_items})
+                                st.session_state["plan_versions"] = plan_versions
+                                
+                                # Save new plan version to database
+                                if "session_id" in st.session_state:
+                                    history_db.save_plan_version(
+                                        st.session_state["session_id"],
+                                        version_number=len(plan_versions),
+                                        plan_items=new_items,
+                                        user_feedback=feedback,
+                                        approved=False
+                                    )
+                            # Immediately rerun to render the new plan version without another click
+                            st.rerun()
 
             if approved_index is None:
                 st.info("👆 Please approve a plan version to proceed to execution.")
