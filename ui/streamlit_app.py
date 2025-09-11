@@ -20,6 +20,16 @@ from runtime.history_db import HistoryDB
 def get_history_db():
     return HistoryDB()
 
+@st.cache_data(ttl=5)  # Cache for 5 seconds, then auto-refresh
+def get_cached_sessions(limit=30):
+    """Get sessions with auto-refresh every 5 seconds"""
+    history_db = get_history_db()
+    return history_db.get_session_history(limit=limit)
+
+def clear_sessions_cache():
+    """Clear the sessions cache to force immediate refresh"""
+    get_cached_sessions.clear()
+
 def format_timestamp(ts):
     """Format timestamp for display"""
     return datetime.fromisoformat(ts).strftime("%Y-%m-%d %H:%M")
@@ -459,6 +469,47 @@ st.markdown("""
         border-color: #e5e7eb !important;
     }
 </style>
+
+<script>
+// Auto-refresh for sidebar updates
+let lastSessionCount = 0;
+let refreshInterval;
+
+function checkForUpdates() {
+    // Check if we're viewing a session or actively using the app
+    const isActivelyUsing = document.querySelector('[data-testid="stFileUploader"]') !== null ||
+                           document.querySelector('.stButton button:hover') !== null ||
+                           document.querySelector('input:focus') !== null;
+    
+    if (!isActivelyUsing) {
+        // Get current session count from the sidebar
+        const sessionCountElement = document.querySelector('.sidebar-title').parentElement;
+        if (sessionCountElement) {
+            const currentText = sessionCountElement.textContent;
+            const match = currentText.match(/(\d+) conversations total/);
+            const currentCount = match ? parseInt(match[1]) : 0;
+            
+            if (lastSessionCount !== 0 && currentCount !== lastSessionCount) {
+                // Session count changed, trigger a subtle refresh
+                window.parent.postMessage({
+                    type: 'streamlit:rerun'
+                }, '*');
+            }
+            lastSessionCount = currentCount;
+        }
+    }
+}
+
+// Start checking every 15 seconds
+refreshInterval = setInterval(checkForUpdates, 15000);
+
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
 """, unsafe_allow_html=True)
 
 # Initialize session state
@@ -466,6 +517,14 @@ if "viewing_session" not in st.session_state:
     st.session_state.viewing_session = None
 if "selected_dataset" not in st.session_state:
     st.session_state.selected_dataset = None
+if "last_refresh" not in st.session_state:
+    st.session_state.last_refresh = datetime.now()
+
+# Auto-refresh mechanism - refresh every 30 seconds
+current_time = datetime.now()
+if (current_time - st.session_state.last_refresh).seconds > 30:
+    st.session_state.last_refresh = current_time
+    clear_sessions_cache()
 
 # Get history database
 history_db = get_history_db()
@@ -483,11 +542,16 @@ with st.sidebar:
             if key not in ["viewing_session"]:
                 del st.session_state[key]
         st.session_state.viewing_session = None
+        # Clear cache to ensure fresh session list
+        clear_sessions_cache()
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Get recent sessions
-    sessions = history_db.get_session_history(limit=30)
+    # Auto-refresh indicator (hidden)
+    refresh_placeholder = st.empty()
+    
+    # Get recent sessions with auto-refresh
+    sessions = get_cached_sessions(limit=30)
     
     if not sessions:
         st.write("No previous sessions")
@@ -573,6 +637,8 @@ with st.sidebar:
                                 # Clear viewing session if it was the deleted one
                                 if st.session_state.get('viewing_session') == session_id:
                                     st.session_state.viewing_session = None
+                                # Clear cache to immediately update sidebar
+                                clear_sessions_cache()
                                 st.rerun()
                         
                         st.markdown('</div>', unsafe_allow_html=True)
@@ -702,13 +768,30 @@ if st.session_state.viewing_session:
                     
                     # Show generated plots
                     try:
+                        # Try to get charts from exec_result manifest (newer format)
                         exec_result = json.loads(result['exec_result'])
+                        charts = []
                         if exec_result.get('manifest', {}).get('charts'):
+                            charts = exec_result['manifest']['charts']
+                        
+                        # If no charts in manifest, try expected_outputs from code_output (common format)
+                        if not charts and result.get('code_output'):
+                            try:
+                                code_output = json.loads(result['code_output'])
+                                expected_outputs = code_output.get('expected_outputs', [])
+                                # Convert expected_outputs to charts format
+                                charts = [{'saved_path': path} for path in expected_outputs]
+                            except Exception:
+                                pass
+                        
+                        if charts:
                             plot_cols = st.columns(2)
-                            for idx, chart in enumerate(exec_result['manifest']['charts']):
+                            for idx, chart in enumerate(charts):
                                 if os.path.exists(chart['saved_path']):
                                     with plot_cols[idx % 2]:
                                         st.image(chart['saved_path'], use_container_width=True, caption=f"Chart {idx + 1}")
+                        else:
+                            st.info("📝 No visualizations found for this item.")
                     except Exception as e:
                         st.warning(f"Could not display plots: {str(e)}")
                     
@@ -784,6 +867,10 @@ elif uploaded_file is not None:
             st.session_state.pop("sample_rows", None)
             st.session_state.pop("plan_versions", None)
             st.session_state.pop("selected_version_index", None)
+            
+            # Start a new session in the database
+            session_id = history_db.start_session(tmp_csv_path, goal, max_items)
+            st.session_state["session_id"] = session_id
 
         # Proceed if a run has been initiated
         if st.session_state.get("analysis_ready"):
@@ -901,6 +988,14 @@ elif uploaded_file is not None:
                 with approval_col2:
                     if st.button(f"✅ Approve Plan {idx+1}", key=f"approve_plan_{idx}", use_container_width=True):
                         approved_index = idx
+                        # Save approved plan to database
+                        if "session_id" in st.session_state:
+                            history_db.save_plan_version(
+                                st.session_state["session_id"],
+                                version_number=idx+1,
+                                plan_items=items,
+                                approved=True
+                            )
                 
                 st.markdown("---")
 
@@ -927,6 +1022,16 @@ elif uploaded_file is not None:
                             version_label = f"Updated {len(plan_versions)}"
                             plan_versions.append({"label": version_label, "items": new_items})
                             st.session_state["plan_versions"] = plan_versions
+                            
+                            # Save new plan version to database
+                            if "session_id" in st.session_state:
+                                history_db.save_plan_version(
+                                    st.session_state["session_id"],
+                                    version_number=len(plan_versions),
+                                    plan_items=new_items,
+                                    user_feedback=feedback,
+                                    approved=False
+                                )
                         # Immediately rerun to render the new plan version without another click
                         st.rerun()
 
@@ -958,21 +1063,22 @@ elif uploaded_file is not None:
                 with st.spinner("🤖 Generating code and executing..."):
                     code_output = orchestrator.coder.write_code(item, st.session_state["profile"], orchestrator.artifacts_dir)
                     
+                    # Initial execution
+                    exec_result = orchestrator.executor.execute(
+                        code_output["python"],
+                        st.session_state["df"],
+                        code_output["manifest_schema"]
+                    )
+                    
                     # Try to execute the code with retries if needed (similar to main.py)
                     max_retries = 3
                     retry_count = 0
                     success = False
-                    exec_result = None
+                    critique_result = {}  # Initialize critique_result
 
                     while retry_count < max_retries and not success:
                         if retry_count > 0:
                             st.info(f"🔄 Retry attempt {retry_count}/{max_retries}...")
-
-                        exec_result = orchestrator.executor.execute(
-                            code_output["python"],
-                            st.session_state["df"],
-                            code_output["manifest_schema"]
-                        )
 
                         if exec_result["exec_ok"]:
                             success = True
@@ -995,8 +1101,9 @@ elif uploaded_file is not None:
                                     continue
                                 except Exception as e:
                                     st.warning(f"❌ Autopep8 fix failed: {str(e)}")
+                                    # Fall through to critic logic since autopep8 failed
                             
-                            # For non-indentation errors, use the critic
+                            # For non-indentation errors OR when autopep8 fails, use the critic
                             critique_result = orchestrator.critic.critique(code_output, exec_result)
                             
                             if critique_result["status"] == "fix":
@@ -1004,6 +1111,10 @@ elif uploaded_file is not None:
                                 # Get new code from CodeWriter with critic's feedback
                                 item["critic_feedback"] = critique_result["notes"]  # Add critic's feedback to help generate better code
                                 code_output = orchestrator.coder.write_code(item, st.session_state["profile"], orchestrator.artifacts_dir)
+                                # Execute the new code
+                                exec_result = orchestrator.executor.execute(
+                                    code_output["python"], st.session_state["df"], code_output["manifest_schema"]
+                                )
                                 retry_count += 1
                             else:
                                 st.warning("❌ Critic could not determine how to fix")
@@ -1013,11 +1124,60 @@ elif uploaded_file is not None:
                         st.error(f"❌ Failed after {retry_count} retries")
 
                 # Show plots for this item with improved layout
-                expected = code_output.get("expected_outputs", [])
-                if expected:
+                # First try to get charts from exec_result manifest (actual saved paths)
+                charts = []
+                if success and exec_result and exec_result.get("manifest", {}).get("charts"):
+                    charts = exec_result["manifest"]["charts"]
+                    st.info(f"📊 Found {len(charts)} charts in manifest")
+                # Fallback to expected_outputs if no charts in manifest
+                elif not charts:
+                    expected = code_output.get("expected_outputs", [])
+                    # Create chart objects from expected outputs that actually exist
+                    charts = []
+                    for path in expected:
+                        # Check if the file exists as provided
+                        if os.path.exists(path):
+                            chart_path = path
+                        else:
+                            # Try to find the file in the artifacts directory with timestamped subdirectory
+                            filename = os.path.basename(path)
+                            # Look for the file in timestamped directories
+                            artifacts_base = orchestrator.artifacts_dir
+                            chart_path = None
+                            
+                            # Check timestamped subdirectories
+                            for subdir in os.listdir(artifacts_base):
+                                if os.path.isdir(os.path.join(artifacts_base, subdir)):
+                                    potential_path = os.path.join(artifacts_base, subdir, filename)
+                                    if os.path.exists(potential_path):
+                                        chart_path = potential_path
+                                        break
+                            
+                            # If still not found, check the base artifacts directory
+                            if not chart_path:
+                                potential_path = os.path.join(artifacts_base, filename)
+                                if os.path.exists(potential_path):
+                                    chart_path = potential_path
+                        
+                        if chart_path and os.path.exists(chart_path):
+                            # Extract chart info from filename
+                            filename = os.path.basename(chart_path)
+                            chart_type = "histogram" if "histogram" in filename else "boxplot" if "boxplot" in filename else "plot"
+                            column_name = filename.split('_')[0] if '_' in filename else "unknown"
+                            
+                            charts.append({
+                                "saved_path": chart_path,
+                                "chart_type": chart_type,
+                                "columns_used": [column_name] if column_name != "unknown" else []
+                            })
+                    
+                    if expected:
+                        st.warning(f"⚠️ No charts in manifest, using expected outputs: {len(charts)} found")
+                
+                if charts:
                     st.markdown("#### 📈 Generated Visualizations")
                     # Create responsive columns based on number of plots
-                    num_plots = len(expected)
+                    num_plots = len(charts)
                     if num_plots == 1:
                         cols = st.columns(1)
                     elif num_plots == 2:
@@ -1025,19 +1185,82 @@ elif uploaded_file is not None:
                     else:
                         cols = st.columns(3)
                     
-                    for j, out_path in enumerate(expected):
-                        if os.path.exists(out_path):
+                    for j, chart in enumerate(charts):
+                        chart_path = chart.get("saved_path", "")
+                        if chart_path and os.path.exists(chart_path):
                             with cols[j % len(cols)]:
-                                st.image(out_path, use_container_width=True, 
-                                        caption=f"Item {item.get('id', f'item_{i}')} - Plot {j+1}")
+                                # Create a more informative caption
+                                chart_type = chart.get("chart_type", "plot")
+                                columns_used = chart.get("columns_used", [])
+                                col_text = f" ({', '.join(columns_used)})" if columns_used else ""
+                                caption = f"Item {item.get('id', f'item_{i}')} - {chart_type.title()}{col_text}"
+                                
+                                st.image(chart_path, use_container_width=True, caption=caption)
+                        else:
+                            st.warning(f"⚠️ Image file not found: {chart_path}")
                 else:
-                    st.info("📝 No visualizations generated for this item.")
+                    # Debug information when no charts are found
+                    st.info("📝 No visualizations found.")
+                    if success and exec_result:
+                        manifest = exec_result.get("manifest", {})
+                        expected = code_output.get("expected_outputs", [])
+                        with st.expander("🔍 Debug Info", expanded=False):
+                            st.write(f"**Execution successful:** {success}")
+                            st.write(f"**Expected outputs:** {expected}")
+                            st.write(f"**Manifest keys:** {list(manifest.keys())}")
+                            if "charts" in manifest:
+                                st.write(f"**Charts in manifest:** {len(manifest['charts'])}")
+                                for i, chart in enumerate(manifest.get('charts', [])):
+                                    st.write(f"  Chart {i+1}: {chart.get('saved_path', 'No path')}")
+                            else:
+                                st.write("**No 'charts' key in manifest**")
+                            
+                            # Show the generated code for debugging
+                            st.write("**Generated Python Code:**")
+                            st.code(code_output.get("python", "No code found"), language="python")
+                            
+                            # Check if expected files exist
+                            st.write("**File Existence Check:**")
+                            for expected_file in expected:
+                                exists = os.path.exists(expected_file)
+                                st.write(f"  {expected_file}: {'✓ Exists' if exists else '✗ Missing'}")
+                            
+                            # Show what files actually exist in artifacts directory
+                            st.write("**Files in Artifacts Directory:**")
+                            artifacts_base = orchestrator.artifacts_dir
+                            try:
+                                if os.path.exists(artifacts_base):
+                                    for root, dirs, files in os.walk(artifacts_base):
+                                        for file in files:
+                                            if file.endswith('.png'):
+                                                full_path = os.path.join(root, file)
+                                                rel_path = os.path.relpath(full_path, artifacts_base)
+                                                st.write(f"  ✓ Found: {rel_path}")
+                                else:
+                                    st.write(f"  Artifacts directory doesn't exist: {artifacts_base}")
+                            except Exception as e:
+                                st.write(f"  Error listing files: {str(e)}")
+                            
+                            # Show execution stdout for more details
+                            stdout = exec_result.get("stdout", "")
+                            if stdout:
+                                st.write("**Execution Output:**")
+                                st.code(stdout, language="text")
 
                 # Execution status
                 if success and exec_result and exec_result.get("exec_ok"):
+                    # Get actual artifacts from manifest charts
+                    artifacts = []
+                    if exec_result.get("manifest", {}).get("charts"):
+                        artifacts = [chart.get("saved_path", "") for chart in exec_result["manifest"]["charts"] 
+                                   if chart.get("saved_path") and os.path.exists(chart.get("saved_path", ""))]
+                    # Fallback to expected outputs if no charts in manifest
+                    if not artifacts:
+                        artifacts = [path for path in code_output.get("expected_outputs", []) if os.path.exists(path)]
+                    
                     highlight = {
                         "title": code_output.get("title", f"Item {item.get('id', f'item_{i}')}"),
-                        "artifacts": expected,
+                        "artifacts": artifacts,
                         "manifest": exec_result.get("manifest", {}),
                         "evidence": exec_result.get("evidence", {}),
                         "notes": exec_result.get("stdout") or "Analysis completed successfully",
@@ -1050,6 +1273,19 @@ elif uploaded_file is not None:
                 else:
                     error_msg = exec_result.get('error', 'Unknown error') if exec_result else 'Execution failed'
                     st.error(f"❌ Execution failed: {error_msg}")
+                
+                # Save execution result to database
+                if "session_id" in st.session_state:
+                    history_db.save_execution_result(
+                        session_id=st.session_state["session_id"],
+                        item_id=item.get('id', f'item_{i}'),
+                        code_output=code_output,
+                        exec_result=exec_result or {},
+                        critique_result=critique_result,
+                        success=success,
+                        retry_count=retry_count,
+                        error=exec_result.get('error') if exec_result else 'Execution failed'
+                    )
                 
                 st.markdown("---")
 
@@ -1067,10 +1303,49 @@ elif uploaded_file is not None:
                 """, unsafe_allow_html=True)
                 st.markdown(final_report.get("markdown"))
                 st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Save the report and complete the session
+                if "session_id" in st.session_state:
+                    # Save report to file
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.md', dir='./report') as f:
+                        f.write(final_report.get("markdown", ""))
+                        report_path = f.name
+                    
+                    # Complete the session in database
+                    history_db.complete_session(
+                        session_id=st.session_state["session_id"],
+                        success=True,
+                        profile=st.session_state["profile"],
+                        report_path=report_path,
+                        artifacts_dir=orchestrator.artifacts_dir
+                    )
+                    
+                    # Clear cache to refresh sidebar immediately
+                    clear_sessions_cache()
             else:
                 st.info("📝 No report generated.")
+                # Complete session as unsuccessful if no report
+                if "session_id" in st.session_state:
+                    history_db.complete_session(
+                        session_id=st.session_state["session_id"],
+                        success=False,
+                        profile=st.session_state.get("profile", {}),
+                        error="No report generated"
+                    )
+                    clear_sessions_cache()
     except Exception as e:
         st.error(f"❌ Analysis Error: {str(e)}")
+        
+        # Complete session with error if it was started
+        if "session_id" in st.session_state:
+            history_db.complete_session(
+                session_id=st.session_state["session_id"],
+                success=False,
+                profile=st.session_state.get("profile", {}),
+                error=str(e)
+            )
+            clear_sessions_cache()
         
         # Provide more specific error guidance
         error_msg = str(e).lower()

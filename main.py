@@ -261,8 +261,9 @@ class EDAOrchestrator:
                                 continue
                             except Exception as e:
                                 print(f"    ❌ Autopep8 fix failed: {str(e)}")
+                                # Fall through to critic logic since autopep8 failed
                         
-                        # For non-indentation errors, use the critic
+                        # For non-indentation errors OR when autopep8 fails, use the critic
                         critique_result = self.critic.critique(code_output, exec_result)
                         
                         if critique_result["status"] == "fix":

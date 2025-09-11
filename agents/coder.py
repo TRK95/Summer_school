@@ -86,10 +86,26 @@ class CodeWriterAgent:
             3. Add proper labels and titles
             4. Save plots to {save_dir} directory
             5. Never call plt.show()
-            6. Create a manifest object describing the chart
+            6. ALWAYS create a manifest dictionary at the end with chart information
             7. NEVER import os, sys, pathlib, subprocess or any file system modules
             8. Use string concatenation for file paths like '{save_dir}/filename.png'
             9. Only use provided modules: pd, np, plt, matplotlib, stats
+            10. The manifest MUST follow this exact format:
+                manifest = {{
+                    "id": "item_id",
+                    "charts": [
+                        {{
+                            "saved_path": "full_path_to_saved_file.png",
+                            "chart_type": "histogram",
+                            "columns_used": ["column_name"],
+                            "n_rows_plotted": number_of_rows,
+                            "axis": {{"x": "x_label", "y": "y_label", "log_x": False, "log_y": False, "x_ticks": 0, "y_ticks": 0}},
+                            "encodings": {{"hue": None, "facet": None}},
+                            "params": {{"bins": 50, "clip_quantiles": [0.01, 0.99], "rolling_window": None}},
+                            "notes": "description"
+                        }}
+                    ]
+                }}
 
             Return JSON with title, python code, expected_outputs, and manifest_schema.
             """

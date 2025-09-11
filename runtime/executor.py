@@ -118,6 +118,11 @@ class SandboxExecutor:
 
             # Extract manifest if it exists
             manifest = namespace.get("manifest", {})
+            
+            # If manifest is empty but we have a manifest_schema, try to create a manifest
+            # by checking which files were actually created
+            if not manifest and manifest_schema:
+                manifest = self._create_manifest_from_files(manifest_schema)
 
             # Generate evidence from the data
             evidence = self._generate_evidence(df, manifest)
@@ -402,3 +407,50 @@ class SandboxExecutor:
                 )
 
         return flags
+
+    def _create_manifest_from_files(self, manifest_schema: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a manifest from the manifest schema by checking which files actually exist"""
+        try:
+            # Start with the schema structure
+            manifest = {
+                "id": manifest_schema.get("id", "unknown"),
+                "charts": []
+            }
+            
+            # Check each chart in the schema to see if the file exists
+            for chart_schema in manifest_schema.get("charts", []):
+                saved_path = chart_schema.get("saved_path", "")
+                if saved_path and os.path.exists(saved_path):
+                    # File exists, add to manifest
+                    manifest["charts"].append(chart_schema)
+            
+            # If no charts were found using the schema, try to find files by scanning the artifacts directory
+            if not manifest["charts"]:
+                # Look for any PNG files in the current artifacts directory structure
+                # This is a fallback when the generated code didn't create proper paths
+                artifacts_base = self.artifacts_dir
+                for root, dirs, files in os.walk(artifacts_base):
+                    for file in files:
+                        if file.endswith('.png'):
+                            full_path = os.path.join(root, file)
+                            # Try to infer chart info from filename
+                            filename = os.path.basename(file)
+                            chart_type = "histogram" if "histogram" in filename else "boxplot" if "boxplot" in filename else "plot"
+                            column_name = filename.split('_')[0] if '_' in filename else "unknown"
+                            
+                            chart_info = {
+                                "saved_path": full_path,
+                                "chart_type": chart_type,
+                                "columns_used": [column_name] if column_name != "unknown" else [],
+                                "n_rows_plotted": 0,  # Unknown
+                                "axis": {"x": column_name, "y": "Frequency", "log_x": False, "log_y": False, "x_ticks": 0, "y_ticks": 0},
+                                "encodings": {"hue": None, "facet": None},
+                                "params": {"bins": None, "clip_quantiles": [0.01, 0.99], "rolling_window": None},
+                                "notes": f"Auto-detected from file: {filename}"
+                            }
+                            manifest["charts"].append(chart_info)
+            
+            return manifest
+        except Exception:
+            # If anything goes wrong, return empty manifest
+            return {}
