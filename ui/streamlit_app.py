@@ -880,7 +880,7 @@ elif uploaded_file is not None:
             st.markdown("---")
             st.markdown("## 🔄 Analysis Progress")
             
-            progress_col1, progress_col2, progress_col3, progress_col4, progress_col5 = st.columns(5)
+            progress_col1, progress_col2, progress_col3, progress_col4 = st.columns(4)
             
             # Step 1: Profile (cache)
             with progress_col1:
@@ -892,31 +892,27 @@ elif uploaded_file is not None:
                 profile = st.session_state["profile"]
                 st.success(f"✅ {profile.get('rows_total', 0):,} rows\n{len(profile.get('columns', []))} columns")
 
-            # Step 2: Load Data (cache)
-            with progress_col2:
-                st.markdown("### 2️⃣ Load")
-                if "df" not in st.session_state:
-                    with st.spinner("Loading data..."):
-                        st.session_state["df"] = pd.read_csv(st.session_state.get("tmp_csv_path", tmp_csv_path))
-                df = st.session_state["df"]
-                st.success(f"✅ {df.shape[0]:,} × {df.shape[1]}")
+            # Load data silently (no UI indicator)
+            if "df" not in st.session_state:
+                st.session_state["df"] = pd.read_csv(st.session_state.get("tmp_csv_path", tmp_csv_path))
+            df = st.session_state["df"]
 
-            # Step 3: Plan indicator
-            with progress_col3:
-                st.markdown("### 3️⃣ Plan")
+            # Step 2: Plan indicator
+            with progress_col2:
+                st.markdown("### 2️⃣ Plan")
                 if "plan_versions" in st.session_state:
                     st.success(f"✅ {len(st.session_state['plan_versions'])} versions")
                 else:
                     st.info("⏳ Pending")
 
-            # Step 4: Execute indicator
-            with progress_col4:
-                st.markdown("### 4️⃣ Execute")
+            # Step 3: Execute indicator
+            with progress_col3:
+                st.markdown("### 3️⃣ Execute")
                 st.info("⏳ Pending")
 
-            # Step 5: Report indicator
-            with progress_col5:
-                st.markdown("### 5️⃣ Report")
+            # Step 4: Report indicator
+            with progress_col4:
+                st.markdown("### 4️⃣ Report")
                 st.info("⏳ Pending")
 
             st.markdown("---")
