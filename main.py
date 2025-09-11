@@ -180,8 +180,26 @@ class EDAOrchestrator:
                         )
                         success = True
                     else:
-                        # On failure, get critic's feedback
-                        print(f"    ⚠️ Failed: {exec_result.get('error', 'Unknown error')}")
+                        error_msg = exec_result.get('error', 'Unknown error')
+                        print(f"    ⚠️ Failed: {error_msg}")
+                        
+                        # Check if it's an indentation error
+                        if "IndentationError" in error_msg or "unexpected indent" in error_msg:
+                            try:
+                                import autopep8
+                                print(f"    🔧 Attempting to fix indentation with autopep8...")
+                                # Fix indentation using autopep8
+                                fixed_code = autopep8.fix_code(code_output["python"])
+                                # Try executing the fixed code
+                                exec_result = self.executor.execute(
+                                    fixed_code, df, code_output["manifest_schema"]
+                                )
+                                retry_count += 1
+                                continue
+                            except Exception as e:
+                                print(f"    ❌ Autopep8 fix failed: {str(e)}")
+                        
+                        # For non-indentation errors, use the critic
                         critique_result = self.critic.critique(code_output, exec_result)
                         
                         if critique_result["status"] == "fix":
