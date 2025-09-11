@@ -1,8 +1,9 @@
 """
 Code Writer Agent - generates Python code for EDA visualizations
 """
-
 import json
+import os
+from datetime import datetime
 from typing import Dict, Any
 from llm.deepseek_client import DeepSeekClient
 
@@ -30,14 +31,23 @@ class CodeWriterAgent:
         Returns:
             Code output with title, python code, expected outputs, and manifest schema
         """
-        user_message = self._build_coder_prompt(item, profile, save_dir)
+        # Use timestamped directory to separate runs
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        timestamped_save_dir = f"{save_dir}/{timestamp}"
+        try:
+            os.makedirs(timestamped_save_dir, exist_ok=True)
+        except Exception:
+            # Fallback to base save_dir if making the subdirectory fails
+            timestamped_save_dir = save_dir
+
+        user_message = self._build_coder_prompt(item, profile, timestamped_save_dir)
 
         try:
             response = self.llm_client.complete_with_system_prompt(user_message)
             return response
         except Exception as e:
             # Fallback to basic code if LLM fails
-            return self._create_fallback_code(item, save_dir)
+            return self._create_fallback_code(item, timestamped_save_dir)
 
     def _build_coder_prompt(
         self, item: Dict[str, Any], profile: Dict[str, Any], save_dir: str

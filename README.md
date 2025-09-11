@@ -95,6 +95,24 @@ automated_eda/
 - `--max-items`: Maximum EDA items (default: 8)
 - `--api-key`: DeepSeek API key override
 
+## 🖥️ Simple UI (Streamlit)
+
+You can run a minimal UI to upload a CSV, set an analysis goal, and view the plan, plots, and final report.
+
+### Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run the app
+
+```bash
+streamlit run ui/streamlit_app.py
+```
+
+Set `DEEPSEEK_API_KEY` in your environment to use the real LLM. Without it, you can test using the demo mode in `demo.py` or future fallback options.
+
 ## 🛡️ Security Features
 
 ### Sandbox Execution
