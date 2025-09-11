@@ -16,6 +16,7 @@ from llm.deepseek_client import DeepSeekClient
 from agents import PlannerAgent, CodeWriterAgent, CriticAgent, ReporterAgent
 from runtime.profiler import CSVProfiler
 from runtime.executor import SandboxExecutor
+from runtime.history_db import HistoryDB
 
 
 class EDAOrchestrator:
@@ -37,6 +38,7 @@ class EDAOrchestrator:
         self.llm_client = DeepSeekClient(api_key)
         self.profiler = CSVProfiler()
         self.executor = SandboxExecutor(artifacts_dir)
+        self.history_db = HistoryDB(os.path.join(self.logs_dir, "history.db"))
 
         # Initialize agents
         self.planner = PlannerAgent(self.llm_client)
@@ -71,6 +73,9 @@ class EDAOrchestrator:
         print(f"📊 User goal: {user_goal}")
 
         try:
+            # Start a new session in history DB
+            session_id = self.history_db.start_session(csv_path, user_goal, max_items)
+            
             # Prepare per-run log directory
             run_ts = datetime.now().strftime('%Y%m%d-%H%M%S')
             run_dir = os.path.join(self.logs_dir, f"run-{run_ts}")
@@ -115,15 +120,36 @@ class EDAOrchestrator:
                     print(f"  {i}. id={item.get('id')} priority={item.get('priority')} goal={item.get('goal')} plots={','.join(item.get('plots', []))} columns={','.join(item.get('columns', []))}")
                 approve = input("\nDo you approve this plan? (y/n): ").strip().lower()
                 if approve in ("y", "yes"):
+                    # Save approved plan version
+                    self.history_db.save_plan_version(
+                        session_id, 
+                        version_number=1, 
+                        plan_items=self.execution_log["eda_plan"],
+                        approved=True
+                    )
                     break
                 # gather feedback and regenerate
                 reasons = input("Please describe what to change (e.g., add/remove items, change plots, priorities, columns): ").strip()
                 if not reasons:
                     print("No feedback provided. Keeping the existing plan. Proceeding...")
+                    # Save current plan as approved
+                    self.history_db.save_plan_version(
+                        session_id,
+                        version_number=1,
+                        plan_items=self.execution_log["eda_plan"],
+                        approved=True
+                    )
                     break
                 print("\n🔄 Regenerating plan based on your feedback...")
                 eda_plan_resp = self.planner.plan(profile, user_goal, max_items, data_samples=sample_rows, user_feedback=reasons)
                 self.execution_log["eda_plan"] = eda_plan_resp.get("eda_plan", [])
+                # Save the new plan version
+                self.history_db.save_plan_version(
+                    session_id,
+                    version_number=len(self.execution_log.get("plan_versions", [])) + 1,
+                    plan_items=self.execution_log["eda_plan"],
+                    user_feedback=reasons
+                )
                 with open(os.path.join(run_dir, "plan.json"), 'w') as f:
                     json.dump(eda_plan_resp, f, indent=2)
                 if eda_plan_resp.get("prompt"):
@@ -179,6 +205,18 @@ class EDAOrchestrator:
                     "critique_result": critique_result,
                 }
                 self.execution_log["exec_results"].append(exec_summary)
+                
+                # Save execution result to history DB
+                self.history_db.save_execution_result(
+                    session_id=session_id,
+                    item_id=item.get('id', f'item_{i}'),
+                    code_output=code_output,
+                    exec_result=exec_result,
+                    critique_result=critique_result,
+                    success=exec_result.get("exec_ok", False),
+                    retry_count=retry_count,
+                    error=exec_result.get("error")
+                )
 
                 # Create highlight for reporter
                 # Try to execute the code with retries if needed
@@ -277,6 +315,15 @@ class EDAOrchestrator:
             print(f"📝 Report: {report_path}")
             print(f"📋 Log: {log_path}")
 
+            # Update session with completion details
+            self.history_db.complete_session(
+                session_id=session_id,
+                success=True,
+                profile=profile,
+                report_path=report_path,
+                artifacts_dir=self.artifacts_dir
+            )
+            
             return {
                 "success": True,
                 "profile": profile,
@@ -285,6 +332,7 @@ class EDAOrchestrator:
                 "artifacts_dir": self.artifacts_dir,
                 "report_path": report_path,
                 "log_path": log_path,
+                "session_id": session_id
             }
 
         except Exception as e:
@@ -301,7 +349,21 @@ class EDAOrchestrator:
             with open(error_path, "w") as f:
                 json.dump(error_log, f, indent=2)
 
-            return {"success": False, "error": error_msg, "error_log_path": error_path}
+            # Update session with error details
+            if 'session_id' in locals():
+                self.history_db.complete_session(
+                    session_id=session_id,
+                    success=False,
+                    profile={},
+                    error=error_msg
+                )
+
+            return {
+                "success": False, 
+                "error": error_msg, 
+                "error_log_path": error_path,
+                "session_id": session_id if 'session_id' in locals() else None
+            }
 
 
 def main():
