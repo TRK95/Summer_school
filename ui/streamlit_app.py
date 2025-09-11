@@ -397,7 +397,7 @@ if st.session_state.viewing_session:
         st.markdown(f"""
         <div style='background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #0ea5e9;'>
             <h4 style='margin: 0; color: #0c4a6e;'>📄 Dataset</h4>
-            <p style='margin: 0; font-size: 1rem; color: #075985;'>{os.path.basename(session['csv_path'])}</p>
+            <p style='margin: 0; font-size: 1rem; color: #075985;'>{os.path.basename(session.get('csv_path', 'Unknown'))}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -405,7 +405,7 @@ if st.session_state.viewing_session:
         st.markdown(f"""
         <div style='background: #f0fdf4; padding: 1rem; border-radius: 8px; border-left: 4px solid #22c55e;'>
             <h4 style='margin: 0; color: #14532d;'>📅 Date</h4>
-            <p style='margin: 0; font-size: 1rem; color: #166534;'>{format_timestamp(session['timestamp'])}</p>
+            <p style='margin: 0; font-size: 1rem; color: #166534;'>{format_timestamp(session.get('timestamp', ''))}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -413,69 +413,91 @@ if st.session_state.viewing_session:
         st.markdown(f"""
         <div style='background: #fefce8; padding: 1rem; border-radius: 8px; border-left: 4px solid #eab308;'>
             <h4 style='margin: 0; color: #713f12;'>🎯 Goal</h4>
-            <p style='margin: 0; font-size: 1rem; color: #a16207;'>{session['goal']}</p>
+            <p style='margin: 0; font-size: 1rem; color: #a16207;'>{session.get('user_goal', 'No goal specified')}</p>
         </div>
         """, unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Show plan versions in tabs
-    if session['plan_versions']:
+    if session.get('plan_versions'):
         st.markdown("### 📋 Analysis Plans")
-        plan_tabs = st.tabs([f"Version {p['version_number']}" for p in session['plan_versions']])
-        for tab, plan in zip(plan_tabs, session['plan_versions']):
-            with tab:
-                if plan['approved']:
-                    st.success("✅ This plan was approved")
-                if plan['user_feedback']:
-                    st.info(f"💬 Feedback: {plan['user_feedback']}")
-                
-                items = json.loads(plan['plan_items'])
-                for item in items:
-                    with st.container():
-                        st.markdown(f"""
-                        <div class='plan-item'>
-                            <h4>📌 Item {item['id']}</h4>
-                            <p><strong>Goal:</strong> {item['goal']}</p>
-                            <p><strong>Plots:</strong> {', '.join(item['plots'])}</p>
-                            <p><strong>Columns:</strong> {', '.join(item['columns'])}</p>
-                            {f"<p><strong>Notes:</strong> {item['notes']}</p>" if item.get('notes') else ""}
-                        </div>
-                        """, unsafe_allow_html=True)
+        try:
+            plan_tabs = st.tabs([f"Version {p['version_number']}" for p in session['plan_versions']])
+            for tab, plan in zip(plan_tabs, session['plan_versions']):
+                with tab:
+                    if plan.get('approved'):
+                        st.success("✅ This plan was approved")
+                    if plan.get('user_feedback'):
+                        st.info(f"💬 Feedback: {plan['user_feedback']}")
+                    
+                    try:
+                        items = json.loads(plan['plan_items'])
+                        for item in items:
+                            with st.container():
+                                st.markdown(f"""
+                                <div class='plan-item'>
+                                    <h4>📌 Item {item.get('id', 'Unknown')}</h4>
+                                    <p><strong>Goal:</strong> {item.get('goal', 'N/A')}</p>
+                                    <p><strong>Plots:</strong> {', '.join(item.get('plots', []))}</p>
+                                    <p><strong>Columns:</strong> {', '.join(item.get('columns', []))}</p>
+                                    {f"<p><strong>Notes:</strong> {item['notes']}</p>" if item.get('notes') else ""}
+                                </div>
+                                """, unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"Error parsing plan items: {str(e)}")
+        except Exception as e:
+            st.error(f"Error displaying plan versions: {str(e)}")
+    else:
+        st.info("📝 No analysis plans found for this session.")
     
     # Show execution results
-    if session['execution_results']:
+    if session.get('execution_results'):
         st.markdown("### 🔄 Execution Results")
-        for result in session['execution_results']:
-            with st.expander(f"📊 Item {result['item_id']}", expanded=True):
-                status_col, retry_col = st.columns([2, 1])
-                with status_col:
-                    status = "✅ Success" if result['success'] else "❌ Failed"
-                    st.markdown(f"**Status**: {status}")
-                with retry_col:
-                    if result['retry_count'] > 0:
-                        st.warning(f"🔄 {result['retry_count']} retries")
-                
-                # Show generated plots
-                exec_result = json.loads(result['exec_result'])
-                if exec_result.get('manifest', {}).get('charts'):
-                    plot_cols = st.columns(2)
-                    for idx, chart in enumerate(exec_result['manifest']['charts']):
-                        if os.path.exists(chart['saved_path']):
-                            with plot_cols[idx % 2]:
-                                st.image(chart['saved_path'], use_container_width=True, caption=f"Chart {idx + 1}")
-                
-                if result['error']:
-                    st.error(f"❌ Error: {result['error']}")
+        try:
+            for result in session['execution_results']:
+                with st.expander(f"📊 Item {result.get('item_id', 'Unknown')}", expanded=True):
+                    status_col, retry_col = st.columns([2, 1])
+                    with status_col:
+                        status = "✅ Success" if result.get('success') else "❌ Failed"
+                        st.markdown(f"**Status**: {status}")
+                    with retry_col:
+                        if result.get('retry_count', 0) > 0:
+                            st.warning(f"🔄 {result['retry_count']} retries")
+                    
+                    # Show generated plots
+                    try:
+                        exec_result = json.loads(result['exec_result'])
+                        if exec_result.get('manifest', {}).get('charts'):
+                            plot_cols = st.columns(2)
+                            for idx, chart in enumerate(exec_result['manifest']['charts']):
+                                if os.path.exists(chart['saved_path']):
+                                    with plot_cols[idx % 2]:
+                                        st.image(chart['saved_path'], use_container_width=True, caption=f"Chart {idx + 1}")
+                    except Exception as e:
+                        st.warning(f"Could not display plots: {str(e)}")
+                    
+                    if result.get('error'):
+                        st.error(f"❌ Error: {result['error']}")
+        except Exception as e:
+            st.error(f"Error displaying execution results: {str(e)}")
+    else:
+        st.info("🔄 No execution results found for this session.")
     
     # Show final report if successful
-    if session['success'] and session['report_path']:
+    if session.get('success') and session.get('report_path'):
         st.markdown("### 📄 Final Report")
         try:
-            with open(session['report_path'], 'r') as f:
-                st.markdown(f.read())
+            report_path = session['report_path']
+            if os.path.exists(report_path):
+                with open(report_path, 'r', encoding='utf-8') as f:
+                    st.markdown(f.read())
+            else:
+                st.warning(f"Report file not found: {report_path}")
         except Exception as e:
             st.error(f"Could not load report: {str(e)}")
+    else:
+        st.info("📄 No final report available for this session.")
 
 elif uploaded_file is not None:
     try:
