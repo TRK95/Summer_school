@@ -7,6 +7,9 @@ import sys
 import json
 import argparse
 from tabulate import tabulate
+
+# Add project root to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from runtime.history_db import HistoryDB
 
 def format_timestamp(ts):
