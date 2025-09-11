@@ -184,16 +184,17 @@ class EDAOrchestrator:
                         print(f"    ⚠️ Failed: {exec_result.get('error', 'Unknown error')}")
                         critique_result = self.critic.critique(code_output, exec_result)
                         
-                        if critique_result["status"] == "fix" and critique_result.get("fix_patch"):
-                            print(f"    🔧 Applying fix from critic...")
-                            # Apply critic's fix and retry
-                            fixed_code = code_output["python"] + "\n" + critique_result["fix_patch"]
+                        if critique_result["status"] == "fix":
+                            print(f"    🔧 Generating new code based on critic's feedback...")
+                            # Get new code from CodeWriter with critic's feedback
+                            item["critic_feedback"] = critique_result["notes"]  # Add critic's feedback to help generate better code
+                            code_output = self.coder.write_code(item, profile, self.artifacts_dir)
                             exec_result = self.executor.execute(
-                                fixed_code, df, code_output["manifest_schema"]
+                                code_output["python"], df, code_output["manifest_schema"]
                             )
                             retry_count += 1
                         else:
-                            print(f"    ❌ Critic could not determine a fix")
+                            print(f"    ❌ Critic could not determine how to fix")
                             break
 
                 if not success:

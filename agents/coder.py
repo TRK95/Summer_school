@@ -43,12 +43,20 @@ class CodeWriterAgent:
         self, item: Dict[str, Any], profile: Dict[str, Any], save_dir: str
     ) -> str:
         """Build the coder prompt"""
+        # Include critic feedback if available
+        critic_context = ""
+        if "critic_feedback" in item:
+            critic_context = f'''
+            "previous_attempt_feedback": {{
+                "error_details": {json.dumps(item["critic_feedback"])}
+            }},'''
+
         prompt = f"""
             {{
             "role": "coder",
             "step": "code",
             "item": {json.dumps(item, indent=2)},
-            "profile": {json.dumps(profile, indent=2)},
+            "profile": {json.dumps(profile, indent=2)},{critic_context}
             "constraints": {{
                 "save_dir": "{save_dir}",
                 "rules": [
