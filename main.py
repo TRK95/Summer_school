@@ -97,14 +97,39 @@ class EDAOrchestrator:
                 sample_rows = df.sample(n=min(8, len(df)), random_state=42).to_dict(orient='records')
             except Exception:
                 sample_rows = []
-            eda_plan = self.planner.plan(profile, user_goal, max_items, data_samples=sample_rows)
-            self.execution_log["eda_plan"] = eda_plan.get("eda_plan", [])
+            eda_plan_resp = self.planner.plan(profile, user_goal, max_items, data_samples=sample_rows)
+            self.execution_log["eda_plan"] = eda_plan_resp.get("eda_plan", [])
             print(f"✅ Created plan with {len(self.execution_log['eda_plan'])} items")
 
-            # Save planner output
+            # Save planner output and prompt
             with open(os.path.join(run_dir, "plan.json"), 'w') as f:
-                json.dump(eda_plan, f, indent=2)
+                json.dump(eda_plan_resp, f, indent=2)
+            if eda_plan_resp.get("prompt"):
+                with open(os.path.join(run_dir, "planner_prompt.txt"), 'w') as f:
+                    f.write(eda_plan_resp["prompt"])
             
+            # NEW: Ask for user approval before proceeding
+            while True:
+                print("\n🛑 Review the proposed EDA plan:")
+                for i, item in enumerate(self.execution_log["eda_plan"], 1):
+                    print(f"  {i}. id={item.get('id')} priority={item.get('priority')} goal={item.get('goal')} plots={','.join(item.get('plots', []))} columns={','.join(item.get('columns', []))}")
+                approve = input("\nDo you approve this plan? (y/n): ").strip().lower()
+                if approve in ("y", "yes"):
+                    break
+                # gather feedback and regenerate
+                reasons = input("Please describe what to change (e.g., add/remove items, change plots, priorities, columns): ").strip()
+                if not reasons:
+                    print("No feedback provided. Keeping the existing plan. Proceeding...")
+                    break
+                print("\n🔄 Regenerating plan based on your feedback...")
+                eda_plan_resp = self.planner.plan(profile, user_goal, max_items, data_samples=sample_rows, user_feedback=reasons)
+                self.execution_log["eda_plan"] = eda_plan_resp.get("eda_plan", [])
+                with open(os.path.join(run_dir, "plan.json"), 'w') as f:
+                    json.dump(eda_plan_resp, f, indent=2)
+                if eda_plan_resp.get("prompt"):
+                    with open(os.path.join(run_dir, "planner_prompt.txt"), 'w') as f:
+                        f.write(eda_plan_resp["prompt"])
+
             # Step 4: Execute each plan item
             print("\n🔧 Step 4: Executing analysis...")
             highlights = []

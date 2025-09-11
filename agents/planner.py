@@ -19,6 +19,7 @@ class PlannerAgent:
         user_goal: str = "General EDA",
         max_items: int = 8,
         data_samples: Optional[List[Dict[str, Any]]] = None,
+        user_feedback: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create an EDA plan based on profile and user goal
@@ -28,26 +29,38 @@ class PlannerAgent:
             user_goal: User's specific goal or "General EDA"
             max_items: Maximum number of plan items
             data_samples: Optional list of data samples for context
+            user_feedback: Optional human feedback to refine/regenerate the plan
 
         Returns:
             EDA plan dictionary
         """
-        user_message = self._build_planner_prompt(profile, user_goal, max_items, data_samples)
+        user_message = self._build_planner_prompt(profile, user_goal, max_items, data_samples, user_feedback)
+
+        # Log the planner prompt to stdout
+        try:
+            print("\n🧠 Planner prompt (for debugging):\n" + user_message)
+        except Exception:
+            pass
 
         try:
             response = self.llm_client.complete_with_system_prompt(user_message)
+            if isinstance(response, dict):
+                response.setdefault("prompt", user_message)
             return response
         except Exception as e:
             # Fallback to basic plan if LLM fails
-            return self._create_fallback_plan(profile, max_items)
+            fallback = self._create_fallback_plan(profile, max_items)
+            fallback["prompt"] = user_message
+            return fallback
 
     def _build_planner_prompt(
-        self, profile: Dict[str, Any], user_goal: str, max_items: int, data_samples: Optional[List[Dict[str, Any]]] = None
+        self, profile: Dict[str, Any], user_goal: str, max_items: int, data_samples: Optional[List[Dict[str, Any]]] = None, user_feedback: Optional[str] = None
     ) -> str:
         """Build the planner prompt"""
         # Include up to 8 sample rows to give the planner concrete context
         samples_json = json.dumps((data_samples or [])[:8], indent=2)
         plot_types = ["histogram", "boxplot", "line", "bar", "heatmap", "scatter"]
+        feedback_section = f'"user_feedback": {json.dumps(user_feedback)} ,' if user_feedback else ''
         prompt = f"""
             {{
             "role": "planner",
@@ -55,8 +68,9 @@ class PlannerAgent:
             "profile": {json.dumps(profile, indent=2)},
             "samples": {samples_json},
             "user_goal": "{user_goal}",
+            {feedback_section}
             "constraints": {{"max_items": {max_items}}},
-            "output_contract": "Return {{\\"eda_plan\\":[{{id,goal,plots,priority,columns,notes}}]}}",
+            "output_contract": "Return {{\"eda_plan\":[{{id,goal,plots,priority,columns,notes}}]}}",
             "available_plot_types": {json.dumps(plot_types)}
             }}
             
@@ -82,6 +96,7 @@ class PlannerAgent:
 
             Available plot types: {", ".join(plot_types)}
 
+            If user_feedback is provided, treat it as authoritative guidance to refine or regenerate the plan. Address each point explicitly by adjusting items, priorities, plots, or columns so the new plan aligns with the feedback.
             
             Return a JSON object with an "eda_plan" array containing plan items.
             Each item should have: id, goal, plots, priority (1=highest), columns, notes.
