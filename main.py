@@ -156,21 +156,48 @@ class EDAOrchestrator:
                 self.execution_log["exec_results"].append(exec_summary)
 
                 # Create highlight for reporter
-                if exec_result["exec_ok"]:
-                    highlight = {
-                        "title": code_output["title"],
-                        "artifacts": code_output["expected_outputs"],
-                        "manifest": exec_result["manifest"],
-                        "evidence": exec_result["evidence"],
-                        "notes": exec_result["stdout"]
-                        or "Analysis completed successfully",
-                    }
-                    highlights.append(highlight)
-                    print(
-                        f"    ✅ Success: {len(code_output['expected_outputs'])} plots generated"
-                    )
-                else:
-                    print(f"    ❌ Failed: {exec_result.get('error', 'Unknown error')}")
+                # Try to execute the code with retries if needed
+                max_retries = 3
+                retry_count = 0
+                success = False
+
+                while retry_count < max_retries and not success:
+                    if retry_count > 0:
+                        print(f"    🔄 Retry attempt {retry_count}/{max_retries}...")
+
+                    if exec_result["exec_ok"]:
+                        highlight = {
+                            "title": code_output["title"],
+                            "artifacts": code_output["expected_outputs"],
+                            "manifest": exec_result["manifest"],
+                            "evidence": exec_result["evidence"],
+                            "notes": exec_result["stdout"]
+                            or "Analysis completed successfully",
+                        }
+                        highlights.append(highlight)
+                        print(
+                            f"    ✅ Success: {len(code_output['expected_outputs'])} plots generated"
+                        )
+                        success = True
+                    else:
+                        # On failure, get critic's feedback
+                        print(f"    ⚠️ Failed: {exec_result.get('error', 'Unknown error')}")
+                        critique_result = self.critic.critique(code_output, exec_result)
+                        
+                        if critique_result["status"] == "fix" and critique_result.get("fix_patch"):
+                            print(f"    🔧 Applying fix from critic...")
+                            # Apply critic's fix and retry
+                            fixed_code = code_output["python"] + "\n" + critique_result["fix_patch"]
+                            exec_result = self.executor.execute(
+                                fixed_code, df, code_output["manifest_schema"]
+                            )
+                            retry_count += 1
+                        else:
+                            print(f"    ❌ Critic could not determine a fix")
+                            break
+
+                if not success:
+                    print(f"    ❌ Failed after {retry_count} retries")
 
             # Step 5: Generate final report
             print("\n📝 Step 5: Generating report...")
