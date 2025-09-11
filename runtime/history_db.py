@@ -175,6 +175,59 @@ class HistoryDB:
             
             return session
 
+    def delete_session(self, session_id: int):
+        """Delete a session and all its related data"""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            
+            # Delete execution results first (foreign key constraint)
+            cursor.execute('DELETE FROM execution_results WHERE session_id = ?', (session_id,))
+            
+            # Delete plan versions (foreign key constraint)
+            cursor.execute('DELETE FROM plan_versions WHERE session_id = ?', (session_id,))
+            
+            # Finally delete the session
+            cursor.execute('DELETE FROM sessions WHERE session_id = ?', (session_id,))
+            
+            conn.commit()
+
+    def delete_all_sessions(self):
+        """Delete all sessions and related data"""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            
+            # Delete all execution results
+            cursor.execute('DELETE FROM execution_results')
+            
+            # Delete all plan versions  
+            cursor.execute('DELETE FROM plan_versions')
+            
+            # Delete all sessions
+            cursor.execute('DELETE FROM sessions')
+            
+            conn.commit()
+
+    def delete_sessions_by_date(self, target_date: str):
+        """Delete all sessions from a specific date (YYYY-MM-DD format)"""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            
+            # Get session IDs for the target date
+            cursor.execute('''
+            SELECT session_id FROM sessions 
+            WHERE DATE(timestamp) = ?
+            ''', (target_date,))
+            
+            session_ids = [row[0] for row in cursor.fetchall()]
+            
+            # Delete related data for each session
+            for session_id in session_ids:
+                cursor.execute('DELETE FROM execution_results WHERE session_id = ?', (session_id,))
+                cursor.execute('DELETE FROM plan_versions WHERE session_id = ?', (session_id,))
+                cursor.execute('DELETE FROM sessions WHERE session_id = ?', (session_id,))
+            
+            conn.commit()
+
     def close(self):
         """Close the database connection"""
         if hasattr(self._local, 'conn'):

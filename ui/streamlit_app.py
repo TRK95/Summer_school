@@ -40,9 +40,14 @@ st.markdown("""
     
     /* Sidebar styling */
     .css-1d391kg {
-        background-color: #f8f9fa;
-        border-right: 1px solid #e9ecef;
-        padding-top: 1rem;
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+        border-right: 2px solid #e2e8f0 !important;
+        padding-top: 1.5rem !important;
+    }
+    
+    /* Sidebar container */
+    .sidebar-container {
+        padding: 0 1rem;
     }
     
     /* Main content area */
@@ -125,31 +130,53 @@ st.markdown("""
     
     /* Sidebar title */
     .sidebar-title {
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-        color: #1f2937 !important;
-        margin-bottom: 1.5rem !important;
+        font-size: 1.6rem !important;
+        font-weight: 800 !important;
+        color: #1e293b !important;
+        margin-bottom: 2rem !important;
         padding: 0 0.5rem !important;
         text-align: center !important;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
     }
     
     /* New chat button */
+    .new-chat-btn {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin-bottom: 2rem !important;
+        padding: 0 1rem !important;
+    }
+    
     .new-chat-btn button {
-        background-color: #ffffff !important;
-        color: #374151 !important;
-        border: 1px solid #d1d5db !important;
-        border-radius: 8px !important;
-        width: 100% !important;
-        padding: 0.75rem 1rem !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        margin-bottom: 1.5rem !important;
-        transition: all 0.2s ease !important;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        width: 90% !important;
+        max-width: 200px !important;
+        padding: 0.9rem 1.2rem !important;
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25) !important;
+        text-align: center !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
     }
     .new-chat-btn button:hover {
-        background-color: #f3f4f6 !important;
-        border-color: #9ca3af !important;
-        transform: translateY(-1px) !important;
+        background: linear-gradient(135deg, #2563eb, #1e40af) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35) !important;
+    }
+    .new-chat-btn button:active {
+        transform: translateY(0px) !important;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25) !important;
     }
     
     /* Session groups */
@@ -185,6 +212,168 @@ st.markdown("""
         background-color: #f3f4f6 !important;
         color: #1f2937 !important;
     }
+    
+    /* Session item container - ChatGPT style */
+    .session-item {
+        background: transparent !important;
+        border-radius: 8px !important;
+        margin: 0 !important;
+        padding: 0.1rem 0.5rem !important;
+        transition: all 0.2s ease !important;
+        position: relative !important;
+        overflow: hidden !important;
+        width: 100% !important;
+    }
+    .session-item:hover {
+        background: rgba(0, 0, 0, 0.05) !important;
+    }
+    
+    /* Override Streamlit container spacing for sessions */
+    .session-item .stContainer > div {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        gap: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Override Streamlit column spacing for sessions */
+    .session-item .stColumns {
+        gap: 0.25rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        width: 100% !important;
+    }
+    
+    .session-item .stColumns > div {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Session item buttons - override Streamlit defaults */
+    .session-item .stButton > button {
+        background: transparent !important;
+        border: none !important;
+        color: #374151 !important;
+        font-size: 0.85rem !important;
+        font-weight: 400 !important;
+        text-align: left !important;
+        padding: 0.25rem 0.1rem !important;
+        margin: 0 !important;
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
+        width: 100% !important;
+        min-height: 24px !important;
+        max-height: 24px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        line-height: 1.1 !important;
+        max-width: 100% !important;
+        word-wrap: normal !important;
+        word-break: normal !important;
+        display: block !important;
+    }
+    
+    .session-item .stButton > button:hover {
+        background: rgba(59, 130, 246, 0.1) !important;
+        color: #1e40af !important;
+    }
+    
+    /* Delete button specific styling */
+    .session-item .stButton:last-child > button {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+        min-height: 20px !important;
+        max-height: 20px !important;
+        padding: 0 !important;
+        font-size: 0.7rem !important;
+        border-radius: 4px !important;
+        opacity: 0 !important;
+        background: rgba(239, 68, 68, 0.1) !important;
+        color: #dc2626 !important;
+        text-align: center !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    .session-item:hover .stButton:last-child > button {
+        opacity: 0.8 !important;
+    }
+    
+    .session-item .stButton:last-child > button:hover {
+        background: #ef4444 !important;
+        color: white !important;
+        transform: scale(1.05) !important;
+        opacity: 1 !important;
+    }
+    
+    /* Remove button styling overrides for session items */
+    .session-item .stButton > button {
+        all: unset !important;
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 24px !important;
+        max-height: 24px !important;
+        color: #374151 !important;
+        font-size: 0.85rem !important;
+        font-weight: 400 !important;
+        text-align: left !important;
+        cursor: pointer !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0.25rem 0.1rem !important;
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
+        line-height: 1.1 !important;
+        box-sizing: border-box !important;
+        word-wrap: normal !important;
+        word-break: normal !important;
+        hyphens: none !important;
+    }
+    
+    /* Force single line for button text content */
+    .session-item .stButton > button * {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        display: inline !important;
+        max-width: 100% !important;
+    }
+    
+    /* Target Streamlit's internal button text elements */
+    .session-item .stButton div,
+    .session-item .stButton span,
+    .session-item .stButton p {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        max-width: 100% !important;
+        display: inline !important;
+        word-wrap: normal !important;
+    }
+    
+    /* Override any flex display that might cause wrapping */
+    .session-item .stButton > button > div {
+        display: inline !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* Remove bulk action styles since we're removing them */
     
     /* Ensure buttons in narrow columns display properly */
     .stButton > button[data-testid="baseButton-secondary"] {
@@ -288,7 +477,7 @@ with st.sidebar:
     
     # New Chat button
     st.markdown('<div class="new-chat-btn">', unsafe_allow_html=True)
-    if st.button("+ Start new analysis"):
+    if st.button("✨ Start new analysis", use_container_width=False):
         # Clear session state for new analysis
         for key in list(st.session_state.keys()):
             if key not in ["viewing_session"]:
@@ -342,13 +531,59 @@ with st.sidebar:
                         dataset = dataset[:17] + "..."
                     
                     status = "✓" if session.get('success') else "✗"
-                    display_text = f"{time_str} • {dataset} {status}"
                     
-                    if st.button(display_text, key=f"sess_{session['session_id']}"):
-                        st.session_state.viewing_session = session["session_id"]
-                        st.rerun()
+                    # For Today section, show time + dataset + status (original format)
+                    # For other sections, show just dataset + status (new format)
+                    if group_name == "Today":
+                        display_text = f"{time_str} • {dataset} {status}"
+                    else:
+                        display_text = f"{dataset} {status}"
+                    
+                    # Create session item in ChatGPT style using columns
+                    session_id = session['session_id']
+                    
+                    # Create the session container
+                    with st.container():
+                        st.markdown('<div class="session-item">', unsafe_allow_html=True)
+                        
+                        # Create columns for content and delete button
+                        content_col, delete_col = st.columns([10, 1])
+                        
+                        with content_col:
+                            # Session content button (full width, no visible styling)
+                            if st.button(
+                                display_text, 
+                                key=f"sess_{session_id}",
+                                help=f"View session from {time_str}",
+                                use_container_width=True
+                            ):
+                                st.session_state.viewing_session = session_id
+                                st.rerun()
+                        
+                        with delete_col:
+                            # Delete button (small, appears on hover)
+                            if st.button(
+                                "🗑️", 
+                                key=f"del_{session_id}",
+                                help="Delete this session",
+                                type="secondary"
+                            ):
+                                # Delete session from database
+                                history_db.delete_session(session_id)
+                                # Clear viewing session if it was the deleted one
+                                if st.session_state.get('viewing_session') == session_id:
+                                    st.session_state.viewing_session = None
+                                st.rerun()
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.write(f"*{len(sessions)} conversations*")
+        st.markdown(f"""
+        <div style='text-align: center; margin-top: 1.5rem; padding: 0.75rem; 
+                    background: rgba(59, 130, 246, 0.1); border-radius: 8px; 
+                    color: #1e40af; font-size: 0.85rem; font-weight: 600;'>
+            📊 {len(sessions)} conversations total
+        </div>
+        """, unsafe_allow_html=True)
 
 # Main content area
 st.markdown("<div class='main-content'>", unsafe_allow_html=True)
