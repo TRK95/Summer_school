@@ -49,11 +49,9 @@ class CriticAgent:
             }}
 
             Review the code execution result. Check for:
-            1. Execution errors or failures
-            2. Linter warnings that need addressing
-            3. Missing or incorrect manifest information
-            4. Poor visualization choices (e.g., high skew without log scale)
-            5. Missing labels or titles
+            1. Missing or incorrect manifest information
+            2. Poor visualization choices (e.g., high skew without log scale)
+            3. Missing labels or titles
 
             If issues are found, provide a fix_patch with corrected code.
             If everything looks good, return status "ok".

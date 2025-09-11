@@ -165,7 +165,7 @@ class EDAOrchestrator:
                     "fix_patch"
                 ):
                     print(f"    🔧 Applying fix...")
-                    fixed_code = code_output["python"] + "\n" + critique_result["fix_patch"]
+                    fixed_code = critique_result["fix_patch"]
                     exec_result = self.executor.execute(fixed_code, df, code_output["manifest_schema"])
                     # Save post-fix executor result
                     with open(os.path.join(run_dir, f"exec_{item_id}_after_fix.json"), 'w') as f:
